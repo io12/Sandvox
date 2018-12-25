@@ -1,0 +1,8 @@
+[package]
+name = "sandvox"
+version = "0.1.0"
+authors = ["Benjamin Levy <blevy@protonmail.com>"]
+
+[dependencies]
+gl = "0.11.0"
+sdl2 = "0.30.0"
