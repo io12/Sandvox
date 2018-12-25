@@ -24,6 +24,8 @@ struct Client {
     ctrls: FirstPerson,
     // true = sand, false = air
     voxels: Box<[[[bool; L]; W]; H]>,
+    // Dirty flag to check if the voxels have changed
+    dirty: bool,
 }
 
 // TODO: Refactor client parameters with impl
@@ -46,6 +48,21 @@ fn make_voxel_mesh(win: &mut Window, x: usize, y: usize, z: usize) -> Mesh {
 }
 
 fn render(client: &mut Client) {
+    // TODO: Think of a cleaner way to do this
+    if client.dirty {
+        for (x, arr_2d) in client.voxels.iter().enumerate() {
+            for (y, arr_1d) in arr_2d.iter().enumerate() {
+                for (z, voxel) in arr_1d.iter().enumerate() {
+                    if *voxel {
+                        let mesh = make_voxel_mesh(&mut client.win, x, y, z);
+                        client.win.scene.add(mesh);
+                    }
+                }
+            }
+        }
+        client.dirty = false;
+    }
+
     client.win.render(&client.cam);
 }
 
@@ -73,28 +90,17 @@ fn main() {
         ctrls,
         // TODO: Maybe make this static
         voxels: Box::new([[[false; L]; W]; H]),
+        dirty: false,
     };
 
     // TODO: Remove this test world
     for i in 0..L {
         client.voxels[i][i][i] = true;
     }
+    client.dirty = true;
 
     // TODO: Move this somewhere
     client.win.set_cursor_state(CursorState::Grab);
-
-    // TODO: Move this back into render() with a dirty flag
-    // TODO: Think of a cleaner way to do this
-    for (x, arr_2d) in client.voxels.iter().enumerate() {
-        for (y, arr_1d) in arr_2d.iter().enumerate() {
-            for (z, voxel) in arr_1d.iter().enumerate() {
-                if *voxel {
-                    let mesh = make_voxel_mesh(&mut client.win, x, y, z);
-                    client.win.scene.add(mesh);
-                }
-            }
-        }
-    }
 
     while client.win.update() {
         client.ctrls.update(&client.win.input);
