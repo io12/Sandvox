@@ -1,17 +1,16 @@
 extern crate three;
 
 use std::boxed::Box;
-use std::process;
 
+use three::camera::Camera;
+use three::controls::axis;
+use three::controls::FirstPerson;
+use three::window::CursorState;
+use three::Geometry;
 use three::Key;
 use three::Mesh;
-use three::Window;
-use three::camera:: Camera;
-use three::Geometry;
-use three::controls::FirstPerson;
 use three::Object;
-use three::controls::axis;
-use three::window::CursorState;
+use three::Window;
 
 const L: usize = 160;
 const W: usize = 160;
@@ -23,73 +22,93 @@ struct Client {
     cam: Camera,
     ctrls: FirstPerson,
     // true = sand, false = air
-    voxels: Box<[[[bool; L]; W]; H]>,
+    voxels: Box<[[[bool; H]; W]; L]>,
     // Dirty flag to check if the voxels have changed
     dirty: bool,
 }
 
-// TODO: Refactor client parameters with impl
-
-fn update_state(client: &mut Client) {
-}
-
-fn make_voxel_mesh(win: &mut Window, x: usize, y: usize, z: usize) -> Mesh {
-    let x = x as f32 * VOX_SIZE;
-    let y = y as f32 * VOX_SIZE;
-    let z = z as f32 * VOX_SIZE;
-    let geo = Geometry::cuboid(VOX_SIZE, VOX_SIZE, VOX_SIZE);
-    let material = three::material::Basic {
-        color: 0xFFFF00,
-        .. Default::default()
-    };
-    let mesh = win.factory.mesh(geo, material);
-    mesh.set_position([x, y, z]);
-    mesh
-}
-
-fn render(client: &mut Client) {
-    // TODO: Think of a cleaner way to do this
-    if client.dirty {
-        for (x, arr_2d) in client.voxels.iter().enumerate() {
-            for (y, arr_1d) in arr_2d.iter().enumerate() {
-                for (z, voxel) in arr_1d.iter().enumerate() {
-                    if *voxel {
-                        let mesh = make_voxel_mesh(&mut client.win, x, y, z);
-                        client.win.scene.add(mesh);
+impl Client {
+    fn update_state(&mut self) {
+        // Make sand fall
+        for x in 0..L {
+            for y in 0..W {
+                for z in 0..H {
+                    // TODO: Swapping might not be the best way
+                    let vox = self.voxels[x][y][z];
+                    let low_vox = if y > 0 {
+                        self.voxels[x][y - 1][z]
+                    } else {
+                        true
+                    };
+                    if vox && !low_vox {
+                        // Swap sand blocks
+                        self.voxels[x][y][z] = low_vox;
+                        self.voxels[x][y - 1][z] = vox;
+                        self.dirty = true;
                     }
                 }
             }
         }
-        client.dirty = false;
     }
 
-    client.win.render(&client.cam);
+    fn make_voxel_mesh(&mut self, x: usize, y: usize, z: usize) -> Mesh {
+        let x = x as f32 * VOX_SIZE;
+        let y = y as f32 * VOX_SIZE;
+        let z = z as f32 * VOX_SIZE;
+        let geo = Geometry::cuboid(VOX_SIZE, VOX_SIZE, VOX_SIZE);
+        let material = three::material::Basic {
+            color: 0xFFFF00,
+            ..Default::default()
+        };
+        let mesh = self.win.factory.mesh(geo, material);
+        mesh.set_position([x, y, z]);
+        mesh
+    }
+
+    fn render(&mut self) {
+        // TODO: Think of a cleaner way to do this
+        if self.dirty {
+            for x in 0..L {
+                for y in 0..W {
+                    for z in 0..H {
+                        if self.voxels[x][y][z] {
+                            let mesh = self.make_voxel_mesh(x, y, z);
+                            self.win.scene.add(mesh);
+                        }
+                    }
+                }
+            }
+            self.dirty = false;
+        }
+
+        self.win.render(&self.cam);
+    }
 }
 
 // TODO: Refactor into functions
 fn main() {
     let mut win = Window::new("sandvox");
 
-    let cam = win.factory.perspective_camera(60.0, 0.1 .. 10.0);
+    let cam = win.factory.perspective_camera(60.0, 0.1..10.0);
     cam.set_position([0.0, 0.0, 10.0]);
     win.scene.add(&cam);
     let ctrls = FirstPerson::builder(&cam)
         .vertical_movement(false)
-        .axis_forward(Some(axis::Key{
+        .axis_forward(Some(axis::Key {
             neg: Key::Down,
             pos: Key::Up,
         }))
-        .axis_strafing(Some(axis::Key{
+        .axis_strafing(Some(axis::Key {
             neg: Key::Left,
             pos: Key::Right,
         }))
         .build();
-    let mut client = Client{
+    let mut client = Client {
         win,
         cam,
         ctrls,
         // TODO: Maybe make this static
-        voxels: Box::new([[[false; L]; W]; H]),
+        voxels: Box::new([[[false; H]; W]; L]),
         dirty: false,
     };
 
@@ -104,7 +123,7 @@ fn main() {
 
     while client.win.update() {
         client.ctrls.update(&client.win.input);
-        update_state(&mut client);
-        render(&mut client);
+        client.update_state();
+        client.render();
     }
 }
