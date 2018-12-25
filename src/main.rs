@@ -28,6 +28,35 @@ struct Client {
 }
 
 impl Client {
+    fn do_input(&mut self) {
+        // Default controls
+        self.ctrls.update(&self.win.input);
+
+        // Custom handling
+        let mut should_reset = false;
+        for key in self.win.input.keys_hit() {
+            match key {
+                Key::Space => should_reset = true,
+                _ => {}
+            }
+        }
+        if should_reset {
+            self.reset_world();
+        }
+    }
+
+    fn reset_world(&mut self) {
+        // TODO: Remove this test world
+        for x in 0..L {
+            for y in 0..W {
+                for z in 0..H {
+                    self.voxels[x][y][z] = x == y && x == z;
+                }
+            }
+        }
+        self.dirty = true;
+    }
+
     fn update_state(&mut self) {
         // Make sand fall
         for x in 0..L {
@@ -68,6 +97,10 @@ impl Client {
     fn render(&mut self) {
         // TODO: Think of a cleaner way to do this
         if self.dirty {
+            // Clear scene
+            self.win.scene = self.win.factory.scene();
+
+            // Add voxels
             for x in 0..L {
                 for y in 0..W {
                     for z in 0..H {
@@ -90,7 +123,7 @@ fn main() {
     let mut win = Window::new("sandvox");
 
     let cam = win.factory.perspective_camera(60.0, 0.1..10.0);
-    cam.set_position([0.0, 0.0, 10.0]);
+    cam.set_position([10.0, 10.0, 10.0]);
     win.scene.add(&cam);
     let ctrls = FirstPerson::builder(&cam)
         .vertical_movement(false)
@@ -112,17 +145,15 @@ fn main() {
         dirty: false,
     };
 
-    // TODO: Remove this test world
-    for i in 0..L {
-        client.voxels[i][i][i] = true;
-    }
-    client.dirty = true;
+    client.reset_world();
 
     // TODO: Move this somewhere
-    client.win.set_cursor_state(CursorState::Grab);
+    // TODO: Ungrab on ESC
+    // TODO: Hide cursor
+    //client.win.set_cursor_state(CursorState::Grab);
 
     while client.win.update() {
-        client.ctrls.update(&client.win.input);
+        client.do_input();
         client.update_state();
         client.render();
     }
