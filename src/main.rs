@@ -147,10 +147,8 @@ fn main() {
 
     client.reset_world();
 
-    // TODO: Move this somewhere
-    // TODO: Ungrab on ESC
-    // TODO: Hide cursor
-    //client.win.set_cursor_state(CursorState::Grab);
+    // TODO: Hide and grab mouse cursor
+    client.win.set_cursor_state(CursorState::Grab);
 
     while client.win.update() {
         client.do_input();
