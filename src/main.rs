@@ -1,50 +1,176 @@
-extern crate three;
+#[macro_use]
+extern crate gfx;
+extern crate gfx_device_gl;
+extern crate gfx_window_glutin;
+extern crate glutin;
+
+use gfx::format::DepthStencil;
+use gfx::format::Rgba8;
+use gfx::handle::DepthStencilView;
+use gfx::handle::RenderTargetView;
+
+use gfx_window_glutin as gfx_glutin;
+
+use glutin::ContextBuilder;
+use glutin::Event;
+use glutin::EventsLoop;
+use glutin::GlWindow;
+use glutin::WindowBuilder;
+use glutin::WindowEvent;
+
+use gfx_device_gl::Device;
+use gfx_device_gl::Factory;
+use gfx_device_gl::Resources;
 
 use std::boxed::Box;
-
-use three::camera::Camera;
-use three::controls::axis;
-use three::controls::FirstPerson;
-use three::window::CursorState;
-use three::Geometry;
-use three::Key;
-use three::Mesh;
-use three::Object;
-use three::Window;
 
 const L: usize = 160;
 const W: usize = 160;
 const H: usize = 160;
 const VOX_SIZE: f32 = 1.0 / 32.0;
+const CUBE_VERTICES: [Vertex; 24] = [
+    // top (0, 0, 1)
+    Vertex::new([-1, -1, 1], [0, 0]),
+    Vertex::new([1, -1, 1], [1, 0]),
+    Vertex::new([1, 1, 1], [1, 1]),
+    Vertex::new([-1, 1, 1], [0, 1]),
+    // bottom (0, 0, -1)
+    Vertex::new([-1, 1, -1], [1, 0]),
+    Vertex::new([1, 1, -1], [0, 0]),
+    Vertex::new([1, -1, -1], [0, 1]),
+    Vertex::new([-1, -1, -1], [1, 1]),
+    // right (1, 0, 0)
+    Vertex::new([1, -1, -1], [0, 0]),
+    Vertex::new([1, 1, -1], [1, 0]),
+    Vertex::new([1, 1, 1], [1, 1]),
+    Vertex::new([1, -1, 1], [0, 1]),
+    // left (-1, 0, 0)
+    Vertex::new([-1, -1, 1], [1, 0]),
+    Vertex::new([-1, 1, 1], [0, 0]),
+    Vertex::new([-1, 1, -1], [0, 1]),
+    Vertex::new([-1, -1, -1], [1, 1]),
+    // front (0, 1, 0)
+    Vertex::new([1, 1, -1], [1, 0]),
+    Vertex::new([-1, 1, -1], [0, 0]),
+    Vertex::new([-1, 1, 1], [0, 1]),
+    Vertex::new([1, 1, 1], [1, 1]),
+    // back (0, -1, 0)
+    Vertex::new([1, -1, 1], [0, 0]),
+    Vertex::new([-1, -1, 1], [1, 0]),
+    Vertex::new([-1, -1, -1], [1, 1]),
+    Vertex::new([1, -1, -1], [0, 1]),
+];
+const CUBE_INDEX_DATA: [u16; 36] = [
+    0, 1, 2, 2, 3, 0, // top
+    4, 5, 6, 6, 7, 4, // bottom
+    8, 9, 10, 10, 11, 8, // right
+    12, 13, 14, 14, 15, 12, // left
+    16, 17, 18, 18, 19, 16, // front
+    20, 21, 22, 22, 23, 20, // back
+];
 
-struct Client {
-    win: Window,
-    cam: Camera,
-    ctrls: FirstPerson,
+struct Graphics {
+    evs: EventsLoop,
+    win: GlWindow,
+    dev: Device,
+    factory: Factory,
+    color_view: RenderTargetView<Resources, Rgba8>,
+    depth_view: DepthStencilView<Resources, DepthStencil>,
+}
+
+struct GameState {
+    running: bool,
     // true = sand, false = air
     voxels: Box<[[[bool; H]; W]; L]>,
     // Dirty flag to check if the voxels have changed
     dirty: bool,
 }
 
-impl Client {
-    fn do_input(&mut self) {
-        // Default controls
-        self.ctrls.update(&self.win.input);
+struct Client {
+    gfx: Graphics,
+    state: GameState,
+}
 
-        // Custom handling
-        let mut should_reset = false;
-        for key in self.win.input.keys_hit() {
-            match key {
-                Key::Space => should_reset = true,
-                _ => {}
-            }
+gfx_defines! {
+    vertex Vertex {
+        pos: [i8; 4] = "a_Pos",
+        tex_coord: [i8; 2] = "a_TexCoord",
+    }
+
+    constant Locals {
+        transform: [[f32; 4]; 4] = "u_Transform",
+    }
+
+    pipeline pipe {
+        locals: gfx::ConstantBuffer<Locals> = "Locals",
+        color: gfx::TextureSampler<[f32; 4]> = "t_Color",
+        out_color: gfx::RenderTarget<Rgba8> = "Target0",
+        out_depth: gfx::DepthTarget<DepthStencil> =
+            gfx::preset::depth::LESS_EQUAL_WRITE,
+    }
+}
+
+impl Vertex {
+    fn new(p: [i8; 3], t: [i8; 2]) -> Vertex {
+        Vertex {
+            pos: [p[0], p[1], p[2], 1],
+            tex_coord: t,
         }
-        if should_reset {
-            self.reset_world();
+    }
+}
+
+fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
+    match ev {
+        WindowEvent::CloseRequested => state.running = false,
+        _ => {}
+    }
+}
+
+fn handle_event(ev: &Event, state: &mut GameState) {
+    match ev {
+        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
+        _ => {}
+    }
+}
+
+fn do_input(evs: &mut EventsLoop, state: &mut GameState) {
+    evs.poll_events(|ev| handle_event(&ev, state));
+}
+
+impl Client {
+    fn init() -> Client {
+        let evs = EventsLoop::new();
+        let win_builder = WindowBuilder::new().with_title("SandVox");
+        let ctx_builder = ContextBuilder::new().with_vsync(true);
+        let (win, dev, factory, color_view, depth_view) =
+            gfx_glutin::init::<Rgba8, DepthStencil>(win_builder, ctx_builder, &evs).unwrap();
+        let pso = factory
+            .create_pipeline_simple(
+                include_bytes!("shaders/vert.glsl"),
+                include_bytes!("shaders/frag.glsl"),
+                pipe::new(),
+            )
+            .unwrap();
+        let graphics = Graphics {
+            evs,
+            win,
+            dev,
+            factory,
+            color_view,
+            depth_view,
+        };
+        let state = GameState {
+            running: true,
+            voxels: Box::new([[[false; H]; W]; L]),
+            dirty: false,
+        };
+        Client {
+            gfx: graphics,
+            state,
         }
     }
 
+    /*
     fn reset_world(&mut self) {
         // TODO: Remove this test world
         for x in 0..L {
@@ -93,68 +219,33 @@ impl Client {
         mesh.set_position([x, y, z]);
         mesh
     }
+    */
 
     fn render(&mut self) {
         // TODO: Think of a cleaner way to do this
-        if self.dirty {
-            // Clear scene
-            self.win.scene = self.win.factory.scene();
-
+        if self.state.dirty {
             // Add voxels
             for x in 0..L {
                 for y in 0..W {
                     for z in 0..H {
-                        if self.voxels[x][y][z] {
-                            let mesh = self.make_voxel_mesh(x, y, z);
-                            self.win.scene.add(mesh);
+                        if self.state.voxels[x][y][z] {
+                            //let mesh = self.make_voxel_mesh(x, y, z);
+                            //self.win.scene.add(mesh);
                         }
                     }
                 }
             }
-            self.dirty = false;
+            self.state.dirty = false;
         }
-
-        self.win.render(&self.cam);
+        self.gfx.win.swap_buffers().unwrap();
     }
 }
 
-// TODO: Refactor into functions
 fn main() {
-    let mut win = Window::new("sandvox");
+    let mut client = Client::init();
 
-    let cam = win.factory.perspective_camera(60.0, 0.1..10.0);
-    cam.set_position([10.0, 10.0, 10.0]);
-    win.scene.add(&cam);
-    let ctrls = FirstPerson::builder(&cam)
-        .vertical_movement(false)
-        .axis_forward(Some(axis::Key {
-            neg: Key::Down,
-            pos: Key::Up,
-        }))
-        .axis_strafing(Some(axis::Key {
-            neg: Key::Left,
-            pos: Key::Right,
-        }))
-        .build();
-    let mut client = Client {
-        win,
-        cam,
-        ctrls,
-        // TODO: Maybe make this static
-        voxels: Box::new([[[false; H]; W]; L]),
-        dirty: false,
-    };
-
-    client.reset_world();
-
-    // TODO: Move this somewhere
-    // TODO: Ungrab on ESC
-    // TODO: Hide cursor
-    //client.win.set_cursor_state(CursorState::Grab);
-
-    while client.win.update() {
-        client.do_input();
-        client.update_state();
+    while client.state.running {
+        do_input(&mut client.gfx.evs, &mut client.state);
         client.render();
     }
 }
