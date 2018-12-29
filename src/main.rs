@@ -2,11 +2,13 @@
 extern crate glium;
 
 use glium::index::PrimitiveType;
-use glium::{glutin, Surface};
+use glium::{glutin, Display, IndexBuffer, Program, Surface, VertexBuffer};
+
+use glutin::{ContextBuilder, Event, EventsLoop, WindowBuilder, WindowEvent};
 
 struct Graphics {
-    display: glium::Display,
-    evs: glutin::EventsLoop,
+    display: Display,
+    evs: EventsLoop,
 }
 
 struct GameState {
@@ -20,16 +22,22 @@ struct Client {
     state: GameState,
 }
 
+#[derive(Clone, Copy)]
+struct Vertex {
+    pos: [f32; 2],
+    color: [f32; 3],
+}
+
 const L: usize = 160;
 const W: usize = 160;
 const H: usize = 160;
 
 impl Client {
     fn init() -> Client {
-        let win = glutin::WindowBuilder::new();
-        let ctx = glutin::ContextBuilder::new();
-        let evs = glutin::EventsLoop::new();
-        let display = glium::Display::new(win, ctx, &evs).unwrap();
+        let win = WindowBuilder::new();
+        let ctx = ContextBuilder::new();
+        let evs = EventsLoop::new();
+        let display = Display::new(win, ctx, &evs).unwrap();
         let gfx = Graphics { display, evs };
         let state = GameState {
             running: true,
@@ -40,43 +48,45 @@ impl Client {
     }
 }
 
+fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
+    match ev {
+        // Break from the main loop when the window is closed.
+        WindowEvent::CloseRequested => state.running = false,
+        // Redraw the triangle when the window is resized.
+        //WindowEvent::Resized(..) => draw(),
+        _ => {}
+    }
+}
+
+fn handle_event(ev: &Event, state: &mut GameState) {
+    match ev {
+        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
+        _ => {}
+    }
+}
+
 // TODO: Destructing can possibly be used here and in other places
 fn do_input(gfx: &mut Graphics, state: &mut GameState) {
-    gfx.evs.poll_events(|ev| match ev {
-        glutin::Event::WindowEvent { event: ev, .. } => match ev {
-            // Break from the main loop when the window is closed.
-            glutin::WindowEvent::CloseRequested => state.running = false,
-            // Redraw the triangle when the window is resized.
-            //glutin::WindowEvent::Resized(..) => draw(),
-            _ => {}
-        },
-        _ => {}
-    });
+    gfx.evs.poll_events(|ev| handle_event(&ev, state));
 }
 
 fn render(gfx: &mut Graphics) {
     let vertex_buffer = {
-        #[derive(Copy, Clone)]
-        struct Vertex {
-            position: [f32; 2],
-            color: [f32; 3],
-        }
+        implement_vertex!(Vertex, pos, color);
 
-        implement_vertex!(Vertex, position, color);
-
-        glium::VertexBuffer::new(
+        VertexBuffer::new(
             &gfx.display,
             &[
                 Vertex {
-                    position: [-0.5, -0.5],
+                    pos: [-0.5, -0.5],
                     color: [0.0, 1.0, 0.0],
                 },
                 Vertex {
-                    position: [0.0, 0.5],
+                    pos: [0.0, 0.5],
                     color: [0.0, 0.0, 1.0],
                 },
                 Vertex {
-                    position: [0.5, -0.5],
+                    pos: [0.5, -0.5],
                     color: [1.0, 0.0, 0.0],
                 },
             ],
@@ -86,10 +96,10 @@ fn render(gfx: &mut Graphics) {
 
     // building the index buffer
     let index_buffer =
-        glium::IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
+        IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
 
     // compiling shaders and linking them together
-    let program = glium::Program::from_source(
+    let program = Program::from_source(
         &gfx.display,
         include_str!("shaders/vert.glsl"),
         include_str!("shaders/frag.glsl"),
