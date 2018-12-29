@@ -1,88 +1,17 @@
 #[macro_use]
-extern crate gfx;
-extern crate gfx_device_gl;
-extern crate gfx_window_glutin;
-extern crate glutin;
+extern crate glium;
 
-use gfx::format::DepthStencil;
-use gfx::format::Rgba8;
-use gfx::handle::DepthStencilView;
-use gfx::handle::RenderTargetView;
-
-use gfx_window_glutin as gfx_glutin;
-
-use glutin::ContextBuilder;
-use glutin::Event;
-use glutin::EventsLoop;
-use glutin::GlWindow;
-use glutin::WindowBuilder;
-use glutin::WindowEvent;
-
-use gfx_device_gl::Device;
-use gfx_device_gl::Factory;
-use gfx_device_gl::Resources;
-
-use std::boxed::Box;
-
-const L: usize = 160;
-const W: usize = 160;
-const H: usize = 160;
-const VOX_SIZE: f32 = 1.0 / 32.0;
-const CUBE_VERTICES: [Vertex; 24] = [
-    // top (0, 0, 1)
-    Vertex::new([-1, -1, 1], [0, 0]),
-    Vertex::new([1, -1, 1], [1, 0]),
-    Vertex::new([1, 1, 1], [1, 1]),
-    Vertex::new([-1, 1, 1], [0, 1]),
-    // bottom (0, 0, -1)
-    Vertex::new([-1, 1, -1], [1, 0]),
-    Vertex::new([1, 1, -1], [0, 0]),
-    Vertex::new([1, -1, -1], [0, 1]),
-    Vertex::new([-1, -1, -1], [1, 1]),
-    // right (1, 0, 0)
-    Vertex::new([1, -1, -1], [0, 0]),
-    Vertex::new([1, 1, -1], [1, 0]),
-    Vertex::new([1, 1, 1], [1, 1]),
-    Vertex::new([1, -1, 1], [0, 1]),
-    // left (-1, 0, 0)
-    Vertex::new([-1, -1, 1], [1, 0]),
-    Vertex::new([-1, 1, 1], [0, 0]),
-    Vertex::new([-1, 1, -1], [0, 1]),
-    Vertex::new([-1, -1, -1], [1, 1]),
-    // front (0, 1, 0)
-    Vertex::new([1, 1, -1], [1, 0]),
-    Vertex::new([-1, 1, -1], [0, 0]),
-    Vertex::new([-1, 1, 1], [0, 1]),
-    Vertex::new([1, 1, 1], [1, 1]),
-    // back (0, -1, 0)
-    Vertex::new([1, -1, 1], [0, 0]),
-    Vertex::new([-1, -1, 1], [1, 0]),
-    Vertex::new([-1, -1, -1], [1, 1]),
-    Vertex::new([1, -1, -1], [0, 1]),
-];
-const CUBE_INDEX_DATA: [u16; 36] = [
-    0, 1, 2, 2, 3, 0, // top
-    4, 5, 6, 6, 7, 4, // bottom
-    8, 9, 10, 10, 11, 8, // right
-    12, 13, 14, 14, 15, 12, // left
-    16, 17, 18, 18, 19, 16, // front
-    20, 21, 22, 22, 23, 20, // back
-];
+use glium::index::PrimitiveType;
+use glium::{glutin, Surface};
 
 struct Graphics {
-    evs: EventsLoop,
-    win: GlWindow,
-    dev: Device,
-    factory: Factory,
-    color_view: RenderTargetView<Resources, Rgba8>,
-    depth_view: DepthStencilView<Resources, DepthStencil>,
+    display: glium::Display,
+    evs: glutin::EventsLoop,
 }
 
 struct GameState {
     running: bool,
-    // true = sand, false = air
     voxels: Box<[[[bool; H]; W]; L]>,
-    // Dirty flag to check if the voxels have changed
     dirty: bool,
 }
 
@@ -91,161 +20,201 @@ struct Client {
     state: GameState,
 }
 
-gfx_defines! {
-    vertex Vertex {
-        pos: [i8; 4] = "a_Pos",
-        tex_coord: [i8; 2] = "a_TexCoord",
-    }
-
-    constant Locals {
-        transform: [[f32; 4]; 4] = "u_Transform",
-    }
-
-    pipeline pipe {
-        locals: gfx::ConstantBuffer<Locals> = "Locals",
-        color: gfx::TextureSampler<[f32; 4]> = "t_Color",
-        out_color: gfx::RenderTarget<Rgba8> = "Target0",
-        out_depth: gfx::DepthTarget<DepthStencil> =
-            gfx::preset::depth::LESS_EQUAL_WRITE,
-    }
-}
-
-impl Vertex {
-    fn new(p: [i8; 3], t: [i8; 2]) -> Vertex {
-        Vertex {
-            pos: [p[0], p[1], p[2], 1],
-            tex_coord: t,
-        }
-    }
-}
-
-fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
-    match ev {
-        WindowEvent::CloseRequested => state.running = false,
-        _ => {}
-    }
-}
-
-fn handle_event(ev: &Event, state: &mut GameState) {
-    match ev {
-        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
-        _ => {}
-    }
-}
-
-fn do_input(evs: &mut EventsLoop, state: &mut GameState) {
-    evs.poll_events(|ev| handle_event(&ev, state));
-}
+const L: usize = 160;
+const W: usize = 160;
+const H: usize = 160;
 
 impl Client {
     fn init() -> Client {
-        let evs = EventsLoop::new();
-        let win_builder = WindowBuilder::new().with_title("SandVox");
-        let ctx_builder = ContextBuilder::new().with_vsync(true);
-        let (win, dev, factory, color_view, depth_view) =
-            gfx_glutin::init::<Rgba8, DepthStencil>(win_builder, ctx_builder, &evs).unwrap();
-        let pso = factory
-            .create_pipeline_simple(
-                include_bytes!("shaders/vert.glsl"),
-                include_bytes!("shaders/frag.glsl"),
-                pipe::new(),
-            )
-            .unwrap();
-        let graphics = Graphics {
-            evs,
-            win,
-            dev,
-            factory,
-            color_view,
-            depth_view,
-        };
+        let win = glutin::WindowBuilder::new();
+        let ctx = glutin::ContextBuilder::new();
+        let evs = glutin::EventsLoop::new();
+        let display = glium::Display::new(win, ctx, &evs).unwrap();
+        let gfx = Graphics { display, evs };
         let state = GameState {
             running: true,
             voxels: Box::new([[[false; H]; W]; L]),
             dirty: false,
         };
-        Client {
-            gfx: graphics,
-            state,
-        }
+        Client { gfx, state }
     }
+}
 
-    /*
-    fn reset_world(&mut self) {
-        // TODO: Remove this test world
-        for x in 0..L {
-            for y in 0..W {
-                for z in 0..H {
-                    self.voxels[x][y][z] = x == y && x == z;
+// TODO: Destructing can possibly be used here and in other places
+fn do_input(gfx: &mut Graphics, state: &mut GameState) {
+    gfx.evs.poll_events(|ev| match ev {
+        glutin::Event::WindowEvent { event: ev, .. } => match ev {
+            // Break from the main loop when the window is closed.
+            glutin::WindowEvent::CloseRequested => state.running = false,
+            // Redraw the triangle when the window is resized.
+            //glutin::WindowEvent::Resized(..) => draw(),
+            _ => {}
+        },
+        _ => {}
+    });
+}
+
+fn render(gfx: &mut Graphics) {
+    let vertex_buffer = {
+        #[derive(Copy, Clone)]
+        struct Vertex {
+            position: [f32; 2],
+            color: [f32; 3],
+        }
+
+        implement_vertex!(Vertex, position, color);
+
+        glium::VertexBuffer::new(
+            &gfx.display,
+            &[
+                Vertex {
+                    position: [-0.5, -0.5],
+                    color: [0.0, 1.0, 0.0],
+                },
+                Vertex {
+                    position: [0.0, 0.5],
+                    color: [0.0, 0.0, 1.0],
+                },
+                Vertex {
+                    position: [0.5, -0.5],
+                    color: [1.0, 0.0, 0.0],
+                },
+            ],
+        )
+        .unwrap()
+    };
+
+    // building the index buffer
+    let index_buffer =
+        glium::IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
+
+    // compiling shaders and linking them together
+    let program = program!(&gfx.display,
+        140 => {
+            vertex: "
+                #version 140
+
+                uniform mat4 matrix;
+
+                in vec2 position;
+                in vec3 color;
+
+                out vec3 vColor;
+
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0) * matrix;
+                    vColor = color;
                 }
-            }
-        }
-        self.dirty = true;
-    }
+            ",
 
-    fn update_state(&mut self) {
-        // Make sand fall
-        for x in 0..L {
-            for y in 0..W {
-                for z in 0..H {
-                    // TODO: Swapping might not be the best way
-                    let vox = self.voxels[x][y][z];
-                    let low_vox = if y > 0 {
-                        self.voxels[x][y - 1][z]
-                    } else {
-                        true
-                    };
-                    if vox && !low_vox {
-                        // Swap sand blocks
-                        self.voxels[x][y][z] = low_vox;
-                        self.voxels[x][y - 1][z] = vox;
-                        self.dirty = true;
-                    }
+            fragment: "
+                #version 140
+                in vec3 vColor;
+                out vec4 f_color;
+
+                void main() {
+                    f_color = vec4(vColor, 1.0);
                 }
-            }
-        }
-    }
+            "
+        },
 
-    fn make_voxel_mesh(&mut self, x: usize, y: usize, z: usize) -> Mesh {
-        let x = x as f32 * VOX_SIZE;
-        let y = y as f32 * VOX_SIZE;
-        let z = z as f32 * VOX_SIZE;
-        let geo = Geometry::cuboid(VOX_SIZE, VOX_SIZE, VOX_SIZE);
-        let material = three::material::Basic {
-            color: 0xFFFF00,
-            ..Default::default()
+        110 => {
+            vertex: "
+                #version 110
+
+                uniform mat4 matrix;
+
+                attribute vec2 position;
+                attribute vec3 color;
+
+                varying vec3 vColor;
+
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0) * matrix;
+                    vColor = color;
+                }
+            ",
+
+            fragment: "
+                #version 110
+                varying vec3 vColor;
+
+                void main() {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            ",
+        },
+
+        100 => {
+            vertex: "
+                #version 100
+
+                uniform lowp mat4 matrix;
+
+                attribute lowp vec2 position;
+                attribute lowp vec3 color;
+
+                varying lowp vec3 vColor;
+
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0) * matrix;
+                    vColor = color;
+                }
+            ",
+
+            fragment: "
+                #version 100
+                varying lowp vec3 vColor;
+
+                void main() {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            ",
+        },
+    )
+    .unwrap();
+
+    // Here we draw the black background and triangle to the screen using the previously
+    // initialised resources.
+    //
+    // In this case we use a closure for simplicity, however keep in mind that most serious
+    // applications should probably use a function that takes the resources as an argument.
+    let draw = || {
+        // building the uniforms
+        let uniforms = uniform! {
+            matrix: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32]
+            ]
         };
-        let mesh = self.win.factory.mesh(geo, material);
-        mesh.set_position([x, y, z]);
-        mesh
-    }
-    */
 
-    fn render(&mut self) {
-        // TODO: Think of a cleaner way to do this
-        if self.state.dirty {
-            // Add voxels
-            for x in 0..L {
-                for y in 0..W {
-                    for z in 0..H {
-                        if self.state.voxels[x][y][z] {
-                            //let mesh = self.make_voxel_mesh(x, y, z);
-                            //self.win.scene.add(mesh);
-                        }
-                    }
-                }
-            }
-            self.state.dirty = false;
-        }
-        self.gfx.win.swap_buffers().unwrap();
-    }
+        // drawing a frame
+        let mut target = gfx.display.draw();
+        target.clear_color(0.0, 0.0, 0.0, 0.0);
+        target
+            .draw(
+                &vertex_buffer,
+                &index_buffer,
+                &program,
+                &uniforms,
+                &Default::default(),
+            )
+            .unwrap();
+        target.finish().unwrap();
+    };
+
+    // Draw the triangle to the screen.
+    draw();
 }
 
 fn main() {
     let mut client = Client::init();
+    // building the vertex buffer, which contains all the vertices that we will draw
 
     while client.state.running {
-        do_input(&mut client.gfx.evs, &mut client.state);
-        client.render();
+        do_input(&mut client.gfx, &mut client.state);
+        render(&mut client.gfx);
     }
 }
