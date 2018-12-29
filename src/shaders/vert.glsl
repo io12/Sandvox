@@ -1,15 +1,13 @@
-#version 150 core
+#version 140
 
-in vec4 a_Pos;
-in vec3 a_Color;
+uniform mat4 matrix;
 
-uniform Transform {
-	mat4 u_Transform;
-};
+in vec2 position;
+in vec3 color;
 
-out vec4 v_Color;
+out vec3 vColor;
 
 void main(void) {
-	v_Color = vec4(a_Color, 1.0);
-	gl_Position = a_Pos * u_Transform;
+	gl_Position = vec4(position, 0.0, 1.0) * matrix;
+	vColor = color;
 }
