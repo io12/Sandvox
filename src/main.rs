@@ -22,6 +22,7 @@ struct Client {
     state: GameState,
 }
 
+implement_vertex!(Vertex, pos, color);
 #[derive(Clone, Copy)]
 struct Vertex {
     pos: [f32; 2],
@@ -72,8 +73,6 @@ fn do_input(gfx: &mut Graphics, state: &mut GameState) {
 
 fn render(gfx: &mut Graphics) {
     let vertex_buffer = {
-        implement_vertex!(Vertex, pos, color);
-
         VertexBuffer::new(
             &gfx.display,
             &[
