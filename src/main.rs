@@ -6,13 +6,13 @@ use glium::index::PrimitiveType;
 use glium::{glutin, Depth, Display, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
 
 use glutin::{
-    ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, VirtualKeyCode,
-    WindowBuilder, WindowEvent,
+    dpi::LogicalSize, ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput,
+    VirtualKeyCode, WindowBuilder, WindowEvent,
 };
 
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
-use cgmath::{Basis3, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
+use cgmath::{perspective, Deg, Matrix4, Point3, Vector2, Vector3};
 
 struct Graphics {
     display: Display,
@@ -27,8 +27,9 @@ struct Player {
 
 struct GameState {
     running: bool,
+    win_size: LogicalSize,
     player: Player,
-    voxels: Box<[[[bool; H]; W]; L]>,
+    voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     dirty: bool,
 }
 
@@ -44,9 +45,11 @@ struct Vertex {
     color: [f32; 3],
 }
 
-const L: usize = 160;
-const W: usize = 160;
-const H: usize = 160;
+const VOX_L: usize = 160;
+const VOX_W: usize = 160;
+const VOX_H: usize = 160;
+const WIN_W: u32 = 800;
+const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
 
 impl Vertex {
@@ -57,7 +60,8 @@ impl Vertex {
 
 impl Client {
     fn init() -> Client {
-        let win = WindowBuilder::new();
+        let win_size = (WIN_W, WIN_H).into();
+        let win = WindowBuilder::new().with_dimensions(win_size);
         let ctx = ContextBuilder::new().with_depth_buffer(24);
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
@@ -68,8 +72,9 @@ impl Client {
         };
         let state = GameState {
             running: true,
+            win_size,
             player,
-            voxels: Box::new([[[false; H]; W]; L]),
+            voxels: Box::new([[[false; VOX_H]; VOX_W]; VOX_L]),
             dirty: false,
         };
         Client { gfx, state }
@@ -79,6 +84,7 @@ impl Client {
 fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     match ev {
         WindowEvent::CloseRequested => state.running = false,
+        WindowEvent::Resized(new_size) => state.win_size = *new_size,
         _ => {}
     }
 }
@@ -132,9 +138,9 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     let vbuf = VertexBuffer::new(
         &gfx.display,
         &[
-            Vertex::new([-0.5, -0.5, 1.0], [1.0, 1.0, 1.0]),
-            Vertex::new([0.0, 0.5, 1.0], [1.0, 1.0, 1.0]),
-            Vertex::new([0.5, -0.5, 1.0], [1.0, 1.0, 1.0]),
+            Vertex::new([-0.5, -0.5, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 0.5, 0.0], [0.0, 1.0, 0.0]),
+            Vertex::new([0.5, -0.5, 0.0], [1.0, 0.0, 0.0]),
         ],
     )
     .unwrap();
@@ -153,7 +159,10 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     let forward = Vector3::new(angle.x.sin(), 0.0, angle.y.cos());
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
-    let matrix = Matrix4::look_at_dir(state.player.pos, forward, up);
+    let aspect_ratio = (state.win_size.width / state.win_size.height) as f32;
+    let proj = perspective(Deg(45.0), aspect_ratio, 0.01, 100.0);
+    let view = Matrix4::look_at_dir(state.player.pos, forward, up);
+    let matrix = view * proj;
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
