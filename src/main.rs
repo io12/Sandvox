@@ -1,18 +1,33 @@
 #[macro_use]
 extern crate glium;
+extern crate cgmath;
 
 use glium::index::PrimitiveType;
-use glium::{glutin, Display, IndexBuffer, Program, Surface, VertexBuffer};
+use glium::{glutin, Depth, Display, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
 
-use glutin::{ContextBuilder, Event, EventsLoop, WindowBuilder, WindowEvent};
+use glutin::{
+    ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, VirtualKeyCode,
+    WindowBuilder, WindowEvent,
+};
+
+use cgmath::conv::array4x4;
+use cgmath::prelude::*;
+use cgmath::{Basis3, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
 
 struct Graphics {
     display: Display,
     evs: EventsLoop,
 }
 
+#[derive(Debug)]
+struct Player {
+    pos: Point3<f32>,
+    angle: Vector2<f32>,
+}
+
 struct GameState {
     running: bool,
+    player: Player,
     voxels: Box<[[[bool; H]; W]; L]>,
     dirty: bool,
 }
@@ -25,23 +40,35 @@ struct Client {
 implement_vertex!(Vertex, pos, color);
 #[derive(Clone, Copy)]
 struct Vertex {
-    pos: [f32; 2],
+    pos: [f32; 3],
     color: [f32; 3],
 }
 
 const L: usize = 160;
 const W: usize = 160;
 const H: usize = 160;
+const TURN_SPEED: f32 = 0.01;
+
+impl Vertex {
+    fn new(pos: [f32; 3], color: [f32; 3]) -> Vertex {
+        Vertex { pos, color }
+    }
+}
 
 impl Client {
     fn init() -> Client {
         let win = WindowBuilder::new();
-        let ctx = ContextBuilder::new();
+        let ctx = ContextBuilder::new().with_depth_buffer(24);
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
         let gfx = Graphics { display, evs };
+        let player = Player {
+            pos: Point3::new(0.0, 0.0, 0.0),
+            angle: Vector2::new(0.0, 0.0),
+        };
         let state = GameState {
             running: true,
+            player,
             voxels: Box::new([[[false; H]; W]; L]),
             dirty: false,
         };
@@ -51,17 +78,45 @@ impl Client {
 
 fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     match ev {
-        // Break from the main loop when the window is closed.
         WindowEvent::CloseRequested => state.running = false,
-        // Redraw the triangle when the window is resized.
-        //WindowEvent::Resized(..) => draw(),
         _ => {}
     }
 }
 
+fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
+    if inp.state != ElementState::Pressed {
+        return;
+    }
+    match inp.virtual_keycode {
+        Some(VirtualKeyCode::W) => state.player.pos.z += 1.0,
+        Some(VirtualKeyCode::A) => state.player.pos.x -= 1.0,
+        Some(VirtualKeyCode::R) => state.player.pos.z -= 1.0,
+        Some(VirtualKeyCode::S) => state.player.pos.x += 1.0,
+        Some(_) | None => {}
+    }
+}
+
+fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
+    match ev {
+        // Change the player direction on mouse motion
+        DeviceEvent::MouseMotion {
+            delta: (dx, dy), ..
+        } => {
+            state.player.angle += Vector2 {
+                x: *dx as f32 * TURN_SPEED,
+                y: *dy as f32 * TURN_SPEED,
+            }
+        }
+        DeviceEvent::Key(inp) => handle_keyboard_input(inp, state),
+        _ => {}
+    }
+}
+
+// Dispatch an event
 fn handle_event(ev: &Event, state: &mut GameState) {
     match ev {
         Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
+        Event::DeviceEvent { event: ev, .. } => handle_device_event(&ev, state),
         _ => {}
     }
 }
@@ -71,33 +126,21 @@ fn do_input(gfx: &mut Graphics, state: &mut GameState) {
     gfx.evs.poll_events(|ev| handle_event(&ev, state));
 }
 
-fn render(gfx: &mut Graphics) {
-    let vertex_buffer = {
-        VertexBuffer::new(
-            &gfx.display,
-            &[
-                Vertex {
-                    pos: [-0.5, -0.5],
-                    color: [0.0, 1.0, 0.0],
-                },
-                Vertex {
-                    pos: [0.0, 0.5],
-                    color: [0.0, 0.0, 1.0],
-                },
-                Vertex {
-                    pos: [0.5, -0.5],
-                    color: [1.0, 0.0, 0.0],
-                },
-            ],
-        )
-        .unwrap()
-    };
+// TODO: Refactor this
+fn render(gfx: &mut Graphics, state: &GameState) {
+    // Create a cube mesh
+    let vbuf = VertexBuffer::new(
+        &gfx.display,
+        &[
+            Vertex::new([-0.5, -0.5, 1.0], [1.0, 1.0, 1.0]),
+            Vertex::new([0.0, 0.5, 1.0], [1.0, 1.0, 1.0]),
+            Vertex::new([0.5, -0.5, 1.0], [1.0, 1.0, 1.0]),
+        ],
+    )
+    .unwrap();
+    let ibuf = IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
 
-    // building the index buffer
-    let index_buffer =
-        IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
-
-    // compiling shaders and linking them together
+    // Compile program from GLSL shaders
     let program = Program::from_source(
         &gfx.display,
         include_str!("shaders/vert.glsl"),
@@ -106,39 +149,29 @@ fn render(gfx: &mut Graphics) {
     )
     .unwrap();
 
-    // Here we draw the black background and triangle to the screen using the previously
-    // initialised resources.
-    //
-    // In this case we use a closure for simplicity, however keep in mind that most serious
-    // applications should probably use a function that takes the resources as an argument.
-    let draw = || {
-        // building the uniforms
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ]
-        };
-
-        // drawing a frame
-        let mut target = gfx.display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target
-            .draw(
-                &vertex_buffer,
-                &index_buffer,
-                &program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
-        target.finish().unwrap();
+    let angle = state.player.angle;
+    let forward = Vector3::new(angle.x.sin(), 0.0, angle.y.cos());
+    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
+    let up = right.cross(forward);
+    let matrix = Matrix4::look_at_dir(state.player.pos, forward, up);
+    let uniforms = uniform! {
+        matrix: array4x4(matrix)
     };
 
-    // Draw the triangle to the screen.
-    draw();
+    let params = DrawParameters {
+        depth: Depth {
+            test: glium::draw_parameters::DepthTest::IfLess,
+            write: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut target = gfx.display.draw();
+    target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+    target
+        .draw(&vbuf, &ibuf, &program, &uniforms, &params)
+        .unwrap();
+    target.finish().unwrap();
 }
 
 fn main() {
@@ -147,6 +180,6 @@ fn main() {
 
     while client.state.running {
         do_input(&mut client.gfx, &mut client.state);
-        render(&mut client.gfx);
+        render(&mut client.gfx, &client.state);
     }
 }

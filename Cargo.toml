@@ -5,3 +5,4 @@ authors = ["Benjamin Levy <blevy@protonmail.com>"]
 
 [dependencies]
 glium = "*"
+cgmath = "0.16.1"
