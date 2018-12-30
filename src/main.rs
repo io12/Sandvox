@@ -157,12 +157,7 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     .unwrap();
 
     let angle = state.player.angle;
-    let forward = Vector3::new(
-        angle.x.sin() * angle.y.cos(),
-        angle.x.sin() * angle.y.sin(),
-        angle.x.cos(),
-    );
-    let forward = Quaternion::from(Euler::new(Rad(angle.x), Rad(angle.y), Rad(0.0)))
+    let forward = Quaternion::from(Euler::new(Rad(angle.y), Rad(angle.x), Rad(0.0)))
         .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
