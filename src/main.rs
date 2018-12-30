@@ -12,7 +12,7 @@ use glutin::{
 
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
-use cgmath::{perspective, Deg, Matrix4, Point3, Vector2, Vector3};
+use cgmath::{perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
 
 struct Graphics {
     display: Display,
@@ -51,6 +51,7 @@ const VOX_H: usize = 160;
 const WIN_W: u32 = 800;
 const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
+const FOV: Deg<f32> = Deg(60.0);
 
 impl Vertex {
     fn new(pos: [f32; 3], color: [f32; 3]) -> Vertex {
@@ -94,9 +95,9 @@ fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
         return;
     }
     match inp.virtual_keycode {
-        Some(VirtualKeyCode::W) => state.player.pos.z += 1.0,
+        Some(VirtualKeyCode::W) => state.player.pos.z -= 1.0,
         Some(VirtualKeyCode::A) => state.player.pos.x -= 1.0,
-        Some(VirtualKeyCode::R) => state.player.pos.z -= 1.0,
+        Some(VirtualKeyCode::R) => state.player.pos.z += 1.0,
         Some(VirtualKeyCode::S) => state.player.pos.x += 1.0,
         Some(_) | None => {}
     }
@@ -109,9 +110,9 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
             delta: (dx, dy), ..
         } => {
             state.player.angle += Vector2 {
-                x: *dx as f32 * TURN_SPEED,
-                y: *dy as f32 * TURN_SPEED,
-            }
+                x: *dx as f32,
+                y: *dy as f32,
+            } * TURN_SPEED
         }
         DeviceEvent::Key(inp) => handle_keyboard_input(inp, state),
         _ => {}
@@ -156,13 +157,19 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     .unwrap();
 
     let angle = state.player.angle;
-    let forward = Vector3::new(angle.x.sin(), 0.0, angle.y.cos());
+    let forward = Vector3::new(
+        angle.x.sin() * angle.y.cos(),
+        angle.x.sin() * angle.y.sin(),
+        angle.x.cos(),
+    );
+    let forward = Quaternion::from(Euler::new(Rad(angle.x), Rad(angle.y), Rad(0.0)))
+        .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
     let aspect_ratio = (state.win_size.width / state.win_size.height) as f32;
-    let proj = perspective(Deg(45.0), aspect_ratio, 0.01, 100.0);
-    let view = Matrix4::look_at_dir(state.player.pos, forward, up);
-    let matrix = view * proj;
+    let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
+    let view = Matrix4::look_at_dir(state.player.pos, forward.normalize(), up.normalize());
+    let matrix = proj * view;
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
