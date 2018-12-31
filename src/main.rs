@@ -162,7 +162,7 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 }
 
 fn render(gfx: &mut Graphics, state: &GameState) {
-    // Create a cube mesh
+    // Create a triangle mesh
     let vbuf = VertexBuffer::new(
         &gfx.display,
         &[
@@ -197,7 +197,6 @@ fn render(gfx: &mut Graphics, state: &GameState) {
 
 fn main() {
     let mut client = Client::init();
-    // building the vertex buffer, which contains all the vertices that we will draw
 
     while client.state.running {
         do_input(&mut client.gfx, &mut client.state);
