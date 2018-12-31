@@ -8,6 +8,6 @@ in vec3 color;
 out vec3 vColor;
 
 void main(void) {
-	gl_Position = vec4(pos, 1.0) * matrix;
+	gl_Position = matrix * vec4(pos, 1.0);
 	vColor = color;
 }

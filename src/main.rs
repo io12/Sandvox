@@ -6,8 +6,8 @@ use glium::index::PrimitiveType;
 use glium::{glutin, Depth, Display, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
 
 use glutin::{
-    dpi::LogicalSize, ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput,
-    VirtualKeyCode, WindowBuilder, WindowEvent,
+    ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, VirtualKeyCode,
+    WindowBuilder, WindowEvent,
 };
 
 use cgmath::conv::array4x4;
@@ -27,7 +27,6 @@ struct Player {
 
 struct GameState {
     running: bool,
-    win_size: LogicalSize,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     dirty: bool,
@@ -73,7 +72,6 @@ impl Client {
         };
         let state = GameState {
             running: true,
-            win_size,
             player,
             voxels: Box::new([[[false; VOX_H]; VOX_W]; VOX_L]),
             dirty: false,
@@ -85,7 +83,6 @@ impl Client {
 fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     match ev {
         WindowEvent::CloseRequested => state.running = false,
-        WindowEvent::Resized(new_size) => state.win_size = *new_size,
         _ => {}
     }
 }
@@ -109,7 +106,7 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
         DeviceEvent::MouseMotion {
             delta: (dx, dy), ..
         } => {
-            state.player.angle += Vector2 {
+            state.player.angle -= Vector2 {
                 x: *dx as f32,
                 y: *dy as f32,
             } * TURN_SPEED
@@ -161,7 +158,8 @@ fn render(gfx: &mut Graphics, state: &GameState) {
         .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
-    let aspect_ratio = (state.win_size.width / state.win_size.height) as f32;
+    let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
+    let aspect_ratio = (win_size.width / win_size.height) as f32;
     let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
     let view = Matrix4::look_at_dir(state.player.pos, forward, up);
     let matrix = proj * view;
