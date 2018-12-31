@@ -163,7 +163,7 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     let up = right.cross(forward);
     let aspect_ratio = (state.win_size.width / state.win_size.height) as f32;
     let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
-    let view = Matrix4::look_at_dir(state.player.pos, forward.normalize(), up.normalize());
+    let view = Matrix4::look_at_dir(state.player.pos, forward, up);
     let matrix = proj * view;
     let uniforms = uniform! {
         matrix: array4x4(matrix)
