@@ -2,8 +2,8 @@
 extern crate glium;
 extern crate cgmath;
 
-use glium::index::PrimitiveType;
-use glium::{glutin, Depth, Display, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
+use glium::index::{NoIndices, PrimitiveType};
+use glium::{glutin, Depth, Display, DrawParameters, Program, Surface, VertexBuffer};
 
 use glutin::{
     ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, VirtualKeyCode,
@@ -172,7 +172,8 @@ fn render(gfx: &mut Graphics, state: &GameState) {
         ],
     )
     .unwrap();
-    let ibuf = IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
+    // Do not use an index buffer
+    let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
     let matrix = compute_matrix(&state.player, gfx);
     let uniforms = uniform! {
