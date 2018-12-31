@@ -17,6 +17,7 @@ use cgmath::{perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2,
 struct Graphics {
     display: Display,
     evs: EventsLoop,
+    program: Program, // GLSL shader program
 }
 
 #[derive(Debug)]
@@ -65,7 +66,20 @@ impl Client {
         let ctx = ContextBuilder::new().with_depth_buffer(24);
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
-        let gfx = Graphics { display, evs };
+        // Compile program from GLSL shaders
+        let program = Program::from_source(
+            &display,
+            include_str!("shaders/vert.glsl"),
+            include_str!("shaders/frag.glsl"),
+            None,
+        )
+        .unwrap();
+
+        let gfx = Graphics {
+            display,
+            evs,
+            program,
+        };
         let player = Player {
             pos: Point3::new(0.0, 0.0, 0.0),
             angle: Vector2::new(0.0, 0.0),
@@ -130,7 +144,23 @@ fn do_input(gfx: &mut Graphics, state: &mut GameState) {
     gfx.evs.poll_events(|ev| handle_event(&ev, state));
 }
 
-// TODO: Refactor this
+// Compute the transformation matrix
+fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
+    let forward = Quaternion::from(Euler {
+        x: Rad(player.angle.y),
+        y: Rad(player.angle.x),
+        z: Rad(0.0),
+    })
+    .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
+    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
+    let up = right.cross(forward);
+    let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
+    let aspect_ratio = (win_size.width / win_size.height) as f32;
+    let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
+    let view = Matrix4::look_at_dir(player.pos, forward, up);
+    proj * view
+}
+
 fn render(gfx: &mut Graphics, state: &GameState) {
     // Create a cube mesh
     let vbuf = VertexBuffer::new(
@@ -144,25 +174,7 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     .unwrap();
     let ibuf = IndexBuffer::new(&gfx.display, PrimitiveType::TrianglesList, &[0u16, 1, 2]).unwrap();
 
-    // Compile program from GLSL shaders
-    let program = Program::from_source(
-        &gfx.display,
-        include_str!("shaders/vert.glsl"),
-        include_str!("shaders/frag.glsl"),
-        None,
-    )
-    .unwrap();
-
-    let angle = state.player.angle;
-    let forward = Quaternion::from(Euler::new(Rad(angle.y), Rad(angle.x), Rad(0.0)))
-        .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
-    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
-    let up = right.cross(forward);
-    let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
-    let aspect_ratio = (win_size.width / win_size.height) as f32;
-    let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
-    let view = Matrix4::look_at_dir(state.player.pos, forward, up);
-    let matrix = proj * view;
+    let matrix = compute_matrix(&state.player, gfx);
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
@@ -178,7 +190,7 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     let mut target = gfx.display.draw();
     target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
     target
-        .draw(&vbuf, &ibuf, &program, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
         .unwrap();
     target.finish().unwrap();
 }
