@@ -110,6 +110,8 @@ fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
         Some(VirtualKeyCode::A) => state.player.pos.x -= 1.0,
         Some(VirtualKeyCode::R) => state.player.pos.z += 1.0,
         Some(VirtualKeyCode::S) => state.player.pos.x += 1.0,
+        Some(VirtualKeyCode::Space) => state.player.pos.y += 1.0,
+        Some(VirtualKeyCode::LShift) => state.player.pos.y -= 1.0,
         Some(_) | None => {}
     }
 }
@@ -162,13 +164,53 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 }
 
 fn render(gfx: &mut Graphics, state: &GameState) {
-    // Create a triangle mesh
+    // Create a cube mesh
+    // TODO: Make this mesh a global
     let vbuf = VertexBuffer::new(
         &gfx.display,
         &[
-            Vertex::new([-0.5, -0.5, 0.0], [0.0, 0.0, 1.0]),
-            Vertex::new([0.0, 0.5, 0.0], [0.0, 1.0, 0.0]),
-            Vertex::new([0.5, -0.5, 0.0], [1.0, 0.0, 0.0]),
+            // View from -x
+            Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 0.0, 1.0], [0.0, 1.0, 0.0]),
+            Vertex::new([0.0, 1.0, 0.0], [0.0, 1.0, 1.0]),
+            Vertex::new([0.0, 1.0, 0.0], [1.0, 0.0, 0.0]),
+            Vertex::new([0.0, 0.0, 1.0], [1.0, 0.0, 1.0]),
+            Vertex::new([0.0, 1.0, 1.0], [1.0, 1.0, 0.0]),
+            // View from +x
+            Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([1.0, 0.0, 1.0], [0.0, 1.0, 0.0]),
+            Vertex::new([1.0, 1.0, 0.0], [0.0, 1.0, 1.0]),
+            Vertex::new([1.0, 1.0, 0.0], [1.0, 0.0, 0.0]),
+            Vertex::new([1.0, 0.0, 1.0], [1.0, 0.0, 1.0]),
+            Vertex::new([1.0, 1.0, 1.0], [1.0, 1.0, 0.0]),
+            // View from -y
+            Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 0.0, 1.0], [0.0, 1.0, 0.0]),
+            Vertex::new([1.0, 0.0, 0.0], [0.0, 1.0, 1.0]),
+            Vertex::new([1.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+            Vertex::new([0.0, 0.0, 1.0], [1.0, 0.0, 1.0]),
+            Vertex::new([1.0, 0.0, 1.0], [1.0, 1.0, 0.0]),
+            // View from +y
+            Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
+            Vertex::new([1.0, 1.0, 0.0], [0.0, 1.0, 1.0]),
+            Vertex::new([1.0, 1.0, 0.0], [1.0, 0.0, 0.0]),
+            Vertex::new([0.0, 1.0, 1.0], [1.0, 0.0, 1.0]),
+            Vertex::new([1.0, 1.0, 1.0], [1.0, 1.0, 0.0]),
+            // View from -z
+            Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 1.0, 0.0], [0.0, 1.0, 0.0]),
+            Vertex::new([1.0, 0.0, 0.0], [0.0, 1.0, 1.0]),
+            Vertex::new([1.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+            Vertex::new([0.0, 1.0, 0.0], [1.0, 0.0, 1.0]),
+            Vertex::new([1.0, 1.0, 0.0], [1.0, 1.0, 0.0]),
+            // View from +z
+            Vertex::new([0.0, 0.0, 1.0], [0.0, 0.0, 1.0]),
+            Vertex::new([0.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
+            Vertex::new([1.0, 0.0, 1.0], [0.0, 1.0, 1.0]),
+            Vertex::new([1.0, 0.0, 1.0], [1.0, 0.0, 0.0]),
+            Vertex::new([0.0, 1.0, 1.0], [1.0, 0.0, 1.0]),
+            Vertex::new([1.0, 1.0, 1.0], [1.0, 1.0, 0.0]),
         ],
     )
     .unwrap();
