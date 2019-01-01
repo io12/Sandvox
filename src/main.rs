@@ -166,6 +166,7 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 fn render(gfx: &mut Graphics, state: &GameState) {
     // Create a cube mesh
     // TODO: Make this mesh a global
+    // TODO: Order vertices correctly for face culling
     let vbuf = VertexBuffer::new(
         &gfx.display,
         &[
@@ -222,12 +223,14 @@ fn render(gfx: &mut Graphics, state: &GameState) {
         matrix: array4x4(matrix)
     };
 
+    // TODO: Move this somewhere
     let params = DrawParameters {
         depth: Depth {
             test: glium::draw_parameters::DepthTest::IfLess,
             write: true,
             ..Default::default()
         },
+        backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         ..Default::default()
     };
     let mut target = gfx.display.draw();
