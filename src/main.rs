@@ -154,18 +154,20 @@ fn key_pressed(state: &mut GameState, key: VirtualKeyCode) -> bool {
 }
 
 fn do_movement(state: &mut GameState, dt: f32) {
+    let (forward, right, _) = compute_dir_vectors(&state.player.angle);
+
     // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
     if key_pressed(state, VirtualKeyCode::W) {
-        state.player.pos.z -= dt * MOVE_SPEED
+        state.player.pos += forward * dt * MOVE_SPEED
     }
     if key_pressed(state, VirtualKeyCode::R) {
-        state.player.pos.z += dt * MOVE_SPEED
+        state.player.pos -= forward * dt * MOVE_SPEED
     }
     if key_pressed(state, VirtualKeyCode::A) {
-        state.player.pos.x -= dt * MOVE_SPEED
+        state.player.pos -= right * dt * MOVE_SPEED
     }
     if key_pressed(state, VirtualKeyCode::S) {
-        state.player.pos.x += dt * MOVE_SPEED
+        state.player.pos += right * dt * MOVE_SPEED
     }
     if key_pressed(state, VirtualKeyCode::Space) {
         state.player.pos.y += dt * MOVE_SPEED
@@ -175,28 +177,38 @@ fn do_movement(state: &mut GameState, dt: f32) {
     }
 }
 
-// Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
-// correct position relative to the player.
-fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
-    // `forward`, `right`, and `up` are the player's forward, right, and up vectors
-    // Calculate the forward vector based on the player angle. The initial vector is rotated on
-    // each axis individually, because it causes issues otherwise.
+// Calculate the forward vector based on the player angle
+fn compute_forward_vector(angle: &Vector2<f32>) -> Vector3<f32> {
+    // The initial vector is rotated on each axis individually, because doing both rotations at
+    // once causes issues.
     // TODO: Find a better way to do this
-    let forward = Quaternion::from(Euler {
+    Quaternion::from(Euler {
         x: Rad(0.0),
-        y: Rad(player.angle.x),
+        y: Rad(angle.x),
         z: Rad(0.0),
     })
     .rotate_vector(
         Quaternion::from(Euler {
-            x: Rad(player.angle.y),
+            x: Rad(angle.y),
             y: Rad(0.0),
             z: Rad(0.0),
         })
         .rotate_vector(Vector3::new(0.0, 0.0, -1.0)),
-    );
+    )
+}
+
+// Compute the (forward, right, up) vectors for the player angle
+fn compute_dir_vectors(angle: &Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
+    let forward = compute_forward_vector(angle);
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
+    (forward, right, up)
+}
+
+// Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
+// correct position relative to the player.
+fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
+    let (forward, _, up) = compute_dir_vectors(&player.angle);
     let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
     let aspect_ratio = (win_size.width / win_size.height) as f32;
     let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
