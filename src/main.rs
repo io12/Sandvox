@@ -17,7 +17,9 @@ use cgmath::{perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2,
 
 use clamp::clamp;
 
+use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::time::{Duration, SystemTime};
 
 struct Graphics {
     display: Display,
@@ -36,6 +38,7 @@ struct GameState {
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     dirty: bool,
+    keys_pressed: HashMap<VirtualKeyCode, bool>,
 }
 
 struct Client {
@@ -56,6 +59,7 @@ const VOX_H: usize = 160;
 const WIN_W: u32 = 800;
 const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
+const MOVE_SPEED: f32 = 0.01;
 const FOV: Deg<f32> = Deg(60.0);
 
 impl Vertex {
@@ -94,6 +98,7 @@ impl Client {
             player,
             voxels: Box::new([[[false; VOX_H]; VOX_W]; VOX_L]),
             dirty: false,
+            keys_pressed: HashMap::new(),
         };
         Client { gfx, state }
     }
@@ -107,17 +112,11 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
 }
 
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
-    if inp.state != ElementState::Pressed {
-        return;
-    }
-    match inp.virtual_keycode {
-        Some(VirtualKeyCode::W) => state.player.pos.z -= 1.0,
-        Some(VirtualKeyCode::A) => state.player.pos.x -= 1.0,
-        Some(VirtualKeyCode::R) => state.player.pos.z += 1.0,
-        Some(VirtualKeyCode::S) => state.player.pos.x += 1.0,
-        Some(VirtualKeyCode::Space) => state.player.pos.y += 1.0,
-        Some(VirtualKeyCode::LShift) => state.player.pos.y -= 1.0,
-        Some(_) | None => {}
+    if let Some(key) = inp.virtual_keycode {
+        match inp.state {
+            ElementState::Pressed => state.keys_pressed.insert(key, true),
+            ElementState::Released => state.keys_pressed.insert(key, false),
+        };
     }
 }
 
@@ -148,6 +147,32 @@ fn handle_event(ev: &Event, state: &mut GameState) {
 // TODO: Destructing can possibly be used here and in other places
 fn do_input(gfx: &mut Graphics, state: &mut GameState) {
     gfx.evs.poll_events(|ev| handle_event(&ev, state));
+}
+
+fn key_pressed(state: &mut GameState, key: VirtualKeyCode) -> bool {
+    *state.keys_pressed.get(&key).unwrap_or(&false)
+}
+
+fn do_movement(state: &mut GameState, dt: f32) {
+    // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
+    if key_pressed(state, VirtualKeyCode::W) {
+        state.player.pos.z -= dt * MOVE_SPEED
+    }
+    if key_pressed(state, VirtualKeyCode::R) {
+        state.player.pos.z += dt * MOVE_SPEED
+    }
+    if key_pressed(state, VirtualKeyCode::A) {
+        state.player.pos.x -= dt * MOVE_SPEED
+    }
+    if key_pressed(state, VirtualKeyCode::S) {
+        state.player.pos.x += dt * MOVE_SPEED
+    }
+    if key_pressed(state, VirtualKeyCode::Space) {
+        state.player.pos.y += dt * MOVE_SPEED
+    }
+    if key_pressed(state, VirtualKeyCode::LShift) {
+        state.player.pos.y -= dt * MOVE_SPEED
+    }
 }
 
 // Compute the transformation matrix
@@ -238,11 +263,22 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     target.finish().unwrap();
 }
 
+// Get the time since `prev_time` in milliseconds
+fn get_time_delta(prev_time: &SystemTime) -> f32 {
+    let elapsed = prev_time.elapsed().unwrap_or(Duration::new(0, 0));
+    elapsed.as_secs() as f32 * 1000.0 + elapsed.subsec_millis() as f32
+}
+
 fn main() {
     let mut client = Client::init();
 
+    // Time of the previous frame
+    let mut prev_time = SystemTime::now();
     while client.state.running {
+        let dt = get_time_delta(&prev_time);
+        prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
+        do_movement(&mut client.state, dt);
         render(&mut client.gfx, &client.state);
     }
 }
