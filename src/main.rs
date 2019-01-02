@@ -157,6 +157,10 @@ fn key_pressed(state: &mut GameState, key: VirtualKeyCode) -> bool {
 
 fn do_movement(state: &mut GameState, dt: f32) {
     let (forward, right, _) = compute_dir_vectors(&state.player.angle);
+    // Discard the y component to prevent the player from floating when they walk forward while
+    // looking up. The vectors are normalized to keep the speed constant.
+    let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
+    let right = right.normalize();
 
     // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
 
