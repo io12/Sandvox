@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate glium;
 extern crate cgmath;
+extern crate clamp;
 
 use glium::index::{NoIndices, PrimitiveType};
 use glium::{glutin, Depth, Display, DrawParameters, Program, Surface, VertexBuffer};
@@ -13,6 +14,10 @@ use glutin::{
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
 use cgmath::{perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
+
+use clamp::clamp;
+
+use std::f32::consts::PI;
 
 struct Graphics {
     display: Display,
@@ -41,8 +46,8 @@ struct Client {
 implement_vertex!(Vertex, pos, color);
 #[derive(Clone, Copy)]
 struct Vertex {
-    pos: [f32; 3],
-    color: [f32; 3],
+    pos: [i8; 3],
+    color: [i8; 3],
 }
 
 const VOX_L: usize = 160;
@@ -54,7 +59,7 @@ const TURN_SPEED: f32 = 0.01;
 const FOV: Deg<f32> = Deg(60.0);
 
 impl Vertex {
-    fn new(pos: [f32; 3], color: [f32; 3]) -> Vertex {
+    fn new(pos: [i8; 3], color: [i8; 3]) -> Vertex {
         Vertex { pos, color }
     }
 }
@@ -122,10 +127,9 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
         DeviceEvent::MouseMotion {
             delta: (dx, dy), ..
         } => {
-            state.player.angle -= Vector2 {
-                x: *dx as f32,
-                y: *dy as f32,
-            } * TURN_SPEED
+            state.player.angle.x -= *dx as f32 * TURN_SPEED;
+            state.player.angle.y -= *dy as f32 * TURN_SPEED;
+            state.player.angle.y = clamp(-PI / 2.0, state.player.angle.y, PI / 2.0);
         }
         DeviceEvent::Key(inp) => handle_keyboard_input(inp, state),
         _ => {}
@@ -169,42 +173,42 @@ fn render(gfx: &mut Graphics, state: &GameState) {
     let vbuf = VertexBuffer::new(
         &gfx.display,
         &[
-            Vertex::new([-1.0, -1.0, -1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([-1.0, -1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, 1.0, 1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([1.0, 1.0, -1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([-1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, 1.0, -1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([1.0, -1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, -1.0, -1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, -1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, -1.0, -1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([-1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, 1.0, 1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([-1.0, 1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, -1.0, 1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([-1.0, -1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, -1.0, -1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([-1.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, -1.0, 1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([1.0, -1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, 1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, -1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([1.0, -1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, 1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([1.0, -1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, 1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([1.0, 1.0, -1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, 1.0, -1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([1.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([-1.0, 1.0, -1.0], [1.0, 0.0, 0.0]),
-            Vertex::new([-1.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, 1.0, 1.0], [0.0, 0.0, 1.0]),
-            Vertex::new([-1.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
-            Vertex::new([1.0, -1.0, 1.], [1.0, 0.0, 0.0]),
+            Vertex::new([-1, -1, -1], [0, 0, 1]),
+            Vertex::new([-1, -1, 1], [0, 1, 0]),
+            Vertex::new([-1, 1, 1], [1, 0, 0]),
+            Vertex::new([1, 1, -1], [1, 0, 0]),
+            Vertex::new([-1, -1, -1], [0, 1, 0]),
+            Vertex::new([-1, 1, -1], [0, 0, 1]),
+            Vertex::new([1, -1, 1], [0, 1, 0]),
+            Vertex::new([-1, -1, -1], [1, 0, 0]),
+            Vertex::new([1, -1, -1], [0, 1, 0]),
+            Vertex::new([1, 1, -1], [0, 0, 1]),
+            Vertex::new([1, -1, -1], [0, 1, 0]),
+            Vertex::new([-1, -1, -1], [1, 0, 0]),
+            Vertex::new([-1, -1, -1], [0, 1, 0]),
+            Vertex::new([-1, 1, 1], [0, 0, 1]),
+            Vertex::new([-1, 1, -1], [0, 1, 0]),
+            Vertex::new([1, -1, 1], [1, 0, 0]),
+            Vertex::new([-1, -1, 1], [0, 1, 0]),
+            Vertex::new([-1, -1, -1], [0, 0, 1]),
+            Vertex::new([-1, 1, 1], [0, 1, 0]),
+            Vertex::new([-1, -1, 1], [1, 0, 0]),
+            Vertex::new([1, -1, 1], [0, 1, 0]),
+            Vertex::new([1, 1, 1], [0, 0, 1]),
+            Vertex::new([1, -1, -1], [0, 1, 0]),
+            Vertex::new([1, 1, -1], [1, 0, 0]),
+            Vertex::new([1, -1, -1], [0, 1, 0]),
+            Vertex::new([1, 1, 1], [0, 0, 1]),
+            Vertex::new([1, -1, 1], [0, 1, 0]),
+            Vertex::new([1, 1, 1], [1, 0, 0]),
+            Vertex::new([1, 1, -1], [0, 1, 0]),
+            Vertex::new([-1, 1, -1], [0, 0, 1]),
+            Vertex::new([1, 1, 1], [0, 1, 0]),
+            Vertex::new([-1, 1, -1], [1, 0, 0]),
+            Vertex::new([-1, 1, 1], [0, 1, 0]),
+            Vertex::new([1, 1, 1], [0, 0, 1]),
+            Vertex::new([-1, 1, 1], [0, 1, 0]),
+            Vertex::new([1, -1, 1], [1, 0, 0]),
         ],
     )
     .unwrap();
