@@ -175,14 +175,26 @@ fn do_movement(state: &mut GameState, dt: f32) {
     }
 }
 
-// Compute the transformation matrix
+// Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
+// correct position relative to the player.
 fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
+    // `forward`, `right`, and `up` are the player's forward, right, and up vectors
+    // Calculate the forward vector based on the player angle. The initial vector is rotated on
+    // each axis individually, because it causes issues otherwise.
+    // TODO: Find a better way to do this
     let forward = Quaternion::from(Euler {
-        x: Rad(player.angle.y),
+        x: Rad(0.0),
         y: Rad(player.angle.x),
         z: Rad(0.0),
     })
-    .rotate_vector(Vector3::new(0.0, 0.0, -1.0));
+    .rotate_vector(
+        Quaternion::from(Euler {
+            x: Rad(player.angle.y),
+            y: Rad(0.0),
+            z: Rad(0.0),
+        })
+        .rotate_vector(Vector3::new(0.0, 0.0, -1.0)),
+    );
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
     let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
