@@ -68,6 +68,7 @@ impl Vertex {
 }
 
 impl Client {
+    // Create a window, initialize OpenGL, compile the GLSL shaders, and initialize a client struct
     fn init() -> Client {
         let win_size = (WIN_W, WIN_H).into();
         let win = WindowBuilder::new().with_dimensions(win_size);
@@ -110,6 +111,7 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     }
 }
 
+// Log whether a key was pressed/released such that `do_movement` knows if keys are held
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
     if let Some(key) = inp.virtual_keycode {
         match inp.state {
@@ -127,6 +129,7 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
         } => {
             state.player.angle.x -= *dx as f32 * TURN_SPEED;
             state.player.angle.y -= *dy as f32 * TURN_SPEED;
+            // Prevent the player from looking too high/low
             state.player.angle.y = clamp(-PI / 2.0, state.player.angle.y, PI / 2.0);
         }
         DeviceEvent::Key(inp) => handle_keyboard_input(inp, state),
@@ -156,21 +159,28 @@ fn do_movement(state: &mut GameState, dt: f32) {
     let (forward, right, _) = compute_dir_vectors(&state.player.angle);
 
     // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
+
+    // Move forward
     if key_pressed(state, VirtualKeyCode::W) {
         state.player.pos += forward * dt * MOVE_SPEED
     }
+    // Move backward
     if key_pressed(state, VirtualKeyCode::R) {
         state.player.pos -= forward * dt * MOVE_SPEED
     }
+    // Move left
     if key_pressed(state, VirtualKeyCode::A) {
         state.player.pos -= right * dt * MOVE_SPEED
     }
+    // Move right
     if key_pressed(state, VirtualKeyCode::S) {
         state.player.pos += right * dt * MOVE_SPEED
     }
+    // Move up
     if key_pressed(state, VirtualKeyCode::Space) {
         state.player.pos.y += dt * MOVE_SPEED
     }
+    // Move down
     if key_pressed(state, VirtualKeyCode::LShift) {
         state.player.pos.y -= dt * MOVE_SPEED
     }
@@ -297,6 +307,7 @@ fn main() {
 
     // Time of the previous frame
     let mut prev_time = SystemTime::now();
+    // Gameloop
     while client.state.running {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
