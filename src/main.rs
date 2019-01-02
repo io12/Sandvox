@@ -27,7 +27,6 @@ struct Graphics {
     program: Program, // GLSL shader program
 }
 
-#[derive(Debug)]
 struct Player {
     pos: Point3<f32>,
     angle: Vector2<f32>,
