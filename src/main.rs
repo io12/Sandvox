@@ -34,6 +34,7 @@ struct Player {
 
 struct GameState {
     running: bool,
+    frame: u32,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     mesh: Vec<Vertex>,
@@ -96,6 +97,7 @@ impl Client {
         };
         let state = GameState {
             running: true,
+            frame: 0,
             player,
             voxels: make_test_world(),
             mesh: Vec::new(),
@@ -205,6 +207,26 @@ fn do_movement(state: &mut GameState, dt: f32) {
     // Move down
     if key_pressed(state, VirtualKeyCode::LShift) {
         state.player.pos.y -= dt * MOVE_SPEED
+    }
+}
+
+// Propagate the voxels downwards (gravity)
+// TODO: Somehow use `dt` here
+fn do_sandfall(state: &mut GameState) {
+    if state.frame % 10 == 0 {
+        // TODO: Find a better way to iterate over voxels
+        for x in 0..VOX_L {
+            for y in 0..VOX_W {
+                for z in 0..VOX_H {
+                    // TODO: Make this less boilerplate
+                    if state.voxels[x][y][z] && y > 0 && !state.voxels[x][y - 1][z] {
+                        state.voxels[x][y][z] = false;
+                        state.voxels[x][y - 1][z] = true;
+                        state.dirty = true;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -357,6 +379,8 @@ fn main() {
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
         do_movement(&mut client.state, dt);
+        do_sandfall(&mut client.state);
         render(&mut client.gfx, &mut client.state);
+        client.state.frame += 1;
     }
 }
