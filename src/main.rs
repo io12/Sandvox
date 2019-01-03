@@ -48,8 +48,8 @@ struct Client {
 implement_vertex!(Vertex, pos, color);
 #[derive(Clone, Copy)]
 struct Vertex {
-    pos: [i8; 3],
-    color: [i8; 3],
+    pos: [u8; 3],
+    color: [u8; 3],
 }
 
 const VOX_L: usize = 160;
@@ -62,7 +62,7 @@ const MOVE_SPEED: f32 = 0.01;
 const FOV: Deg<f32> = Deg(60.0);
 
 impl Vertex {
-    fn new(pos: [i8; 3], color: [i8; 3]) -> Vertex {
+    fn new(pos: [u8; 3], color: [u8; 3]) -> Vertex {
         Vertex { pos, color }
     }
 }
@@ -96,12 +96,28 @@ impl Client {
         let state = GameState {
             running: true,
             player,
-            voxels: Box::new([[[false; VOX_H]; VOX_W]; VOX_L]),
+            voxels: make_test_world(),
             dirty: false,
             keys_pressed: HashMap::new(),
         };
         Client { gfx, state }
     }
+}
+
+// Create an initial diagonal stripe test world
+// TODO: Remove this
+fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
+    let mut voxels = Box::new([[[false; VOX_H]; VOX_W]; VOX_L]);
+    for x in 0..VOX_L {
+        for y in 0..VOX_W {
+            for z in 0..VOX_H {
+                if x == y && y == z {
+                    voxels[x][y][z] = true;
+                }
+            }
+        }
+    }
+    voxels
 }
 
 fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
@@ -229,51 +245,70 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     proj * view
 }
 
-fn render(gfx: &mut Graphics, state: &GameState) {
-    // Create a cube mesh
+// Make a mesh of the voxel world
+fn make_mesh(state: &GameState) -> Vec<Vertex> {
     // TODO: Make this mesh a global
-    let vbuf = VertexBuffer::new(
-        &gfx.display,
-        &[
-            Vertex::new([0, 0, 0], [0, 0, 1]),
-            Vertex::new([0, 0, 1], [0, 1, 0]),
-            Vertex::new([0, 1, 1], [1, 0, 0]),
-            Vertex::new([1, 1, 0], [1, 0, 0]),
-            Vertex::new([0, 0, 0], [0, 1, 0]),
-            Vertex::new([0, 1, 0], [0, 0, 1]),
-            Vertex::new([1, 0, 1], [0, 1, 0]),
-            Vertex::new([0, 0, 0], [1, 0, 0]),
-            Vertex::new([1, 0, 0], [0, 1, 0]),
-            Vertex::new([1, 1, 0], [0, 0, 1]),
-            Vertex::new([1, 0, 0], [0, 1, 0]),
-            Vertex::new([0, 0, 0], [1, 0, 0]),
-            Vertex::new([0, 0, 0], [0, 1, 0]),
-            Vertex::new([0, 1, 1], [0, 0, 1]),
-            Vertex::new([0, 1, 0], [0, 1, 0]),
-            Vertex::new([1, 0, 1], [1, 0, 0]),
-            Vertex::new([0, 0, 1], [0, 1, 0]),
-            Vertex::new([0, 0, 0], [0, 0, 1]),
-            Vertex::new([0, 1, 1], [0, 1, 0]),
-            Vertex::new([0, 0, 1], [1, 0, 0]),
-            Vertex::new([1, 0, 1], [0, 1, 0]),
-            Vertex::new([1, 1, 1], [0, 0, 1]),
-            Vertex::new([1, 0, 0], [0, 1, 0]),
-            Vertex::new([1, 1, 0], [1, 0, 0]),
-            Vertex::new([1, 0, 0], [0, 1, 0]),
-            Vertex::new([1, 1, 1], [0, 0, 1]),
-            Vertex::new([1, 0, 1], [0, 1, 0]),
-            Vertex::new([1, 1, 1], [1, 0, 0]),
-            Vertex::new([1, 1, 0], [0, 1, 0]),
-            Vertex::new([0, 1, 0], [0, 0, 1]),
-            Vertex::new([1, 1, 1], [0, 1, 0]),
-            Vertex::new([0, 1, 0], [1, 0, 0]),
-            Vertex::new([0, 1, 1], [0, 1, 0]),
-            Vertex::new([1, 1, 1], [0, 0, 1]),
-            Vertex::new([0, 1, 1], [0, 1, 0]),
-            Vertex::new([1, 0, 1], [1, 0, 0]),
-        ],
-    )
-    .unwrap();
+    let cube_vertices = [
+        Vertex::new([0, 0, 0], [0, 0, 1]),
+        Vertex::new([0, 0, 1], [0, 1, 0]),
+        Vertex::new([0, 1, 1], [1, 0, 0]),
+        Vertex::new([1, 1, 0], [1, 0, 0]),
+        Vertex::new([0, 0, 0], [0, 1, 0]),
+        Vertex::new([0, 1, 0], [0, 0, 1]),
+        Vertex::new([1, 0, 1], [0, 1, 0]),
+        Vertex::new([0, 0, 0], [1, 0, 0]),
+        Vertex::new([1, 0, 0], [0, 1, 0]),
+        Vertex::new([1, 1, 0], [0, 0, 1]),
+        Vertex::new([1, 0, 0], [0, 1, 0]),
+        Vertex::new([0, 0, 0], [1, 0, 0]),
+        Vertex::new([0, 0, 0], [0, 1, 0]),
+        Vertex::new([0, 1, 1], [0, 0, 1]),
+        Vertex::new([0, 1, 0], [0, 1, 0]),
+        Vertex::new([1, 0, 1], [1, 0, 0]),
+        Vertex::new([0, 0, 1], [0, 1, 0]),
+        Vertex::new([0, 0, 0], [0, 0, 1]),
+        Vertex::new([0, 1, 1], [0, 1, 0]),
+        Vertex::new([0, 0, 1], [1, 0, 0]),
+        Vertex::new([1, 0, 1], [0, 1, 0]),
+        Vertex::new([1, 1, 1], [0, 0, 1]),
+        Vertex::new([1, 0, 0], [0, 1, 0]),
+        Vertex::new([1, 1, 0], [1, 0, 0]),
+        Vertex::new([1, 0, 0], [0, 1, 0]),
+        Vertex::new([1, 1, 1], [0, 0, 1]),
+        Vertex::new([1, 0, 1], [0, 1, 0]),
+        Vertex::new([1, 1, 1], [1, 0, 0]),
+        Vertex::new([1, 1, 0], [0, 1, 0]),
+        Vertex::new([0, 1, 0], [0, 0, 1]),
+        Vertex::new([1, 1, 1], [0, 1, 0]),
+        Vertex::new([0, 1, 0], [1, 0, 0]),
+        Vertex::new([0, 1, 1], [0, 1, 0]),
+        Vertex::new([1, 1, 1], [0, 0, 1]),
+        Vertex::new([0, 1, 1], [0, 1, 0]),
+        Vertex::new([1, 0, 1], [1, 0, 0]),
+    ];
+
+    let mut mesh = Vec::new();
+    // Iterate through all the voxels, creating a cube mesh for each
+    for x in 0..VOX_L {
+        for y in 0..VOX_W {
+            for z in 0..VOX_H {
+                if state.voxels[x][y][z] {
+                    for v in cube_vertices.iter() {
+                        mesh.push(Vertex::new(
+                            [v.pos[0] + x as u8, v.pos[1] + y as u8, v.pos[2] + z as u8],
+                            v.color,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    mesh
+}
+
+fn render(gfx: &mut Graphics, state: &GameState) {
+    let mesh = make_mesh(state);
+    let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
