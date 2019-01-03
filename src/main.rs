@@ -311,6 +311,7 @@ fn make_mesh(state: &GameState) -> Vec<Vertex> {
 fn render(gfx: &mut Graphics, state: &mut GameState) {
     if state.dirty {
         state.mesh = make_mesh(state);
+        state.dirty = false;
     }
     let vbuf = VertexBuffer::new(&gfx.display, &state.mesh).unwrap();
     // Do not use an index buffer
