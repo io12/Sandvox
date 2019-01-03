@@ -36,6 +36,7 @@ struct GameState {
     running: bool,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
+    mesh: Vec<Vertex>,
     dirty: bool,
     keys_pressed: HashMap<VirtualKeyCode, bool>,
 }
@@ -97,7 +98,8 @@ impl Client {
             running: true,
             player,
             voxels: make_test_world(),
-            dirty: false,
+            mesh: Vec::new(),
+            dirty: true,
             keys_pressed: HashMap::new(),
         };
         Client { gfx, state }
@@ -306,9 +308,11 @@ fn make_mesh(state: &GameState) -> Vec<Vertex> {
     mesh
 }
 
-fn render(gfx: &mut Graphics, state: &GameState) {
-    let mesh = make_mesh(state);
-    let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
+fn render(gfx: &mut Graphics, state: &mut GameState) {
+    if state.dirty {
+        state.mesh = make_mesh(state);
+    }
+    let vbuf = VertexBuffer::new(&gfx.display, &state.mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
@@ -352,6 +356,6 @@ fn main() {
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
         do_movement(&mut client.state, dt);
-        render(&mut client.gfx, &client.state);
+        render(&mut client.gfx, &mut client.state);
     }
 }
