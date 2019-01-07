@@ -34,7 +34,7 @@ struct Player {
 
 struct GameState {
     running: bool,
-    mouse_grabbed: bool,
+    paused: bool,
     frame: u32,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
@@ -103,7 +103,7 @@ impl Client {
         };
         let mut state = GameState {
             running: true,
-            mouse_grabbed: false,
+            paused: true,
             frame: 0,
             player,
             voxels: make_test_world(),
@@ -111,7 +111,7 @@ impl Client {
             dirty: true,
             keys_pressed: HashMap::new(),
         };
-        set_mouse_grab(&mut state, &gfx.display, true);
+        set_pause(&mut state, &gfx.display, false);
         Client { gfx, state }
     }
 }
@@ -132,11 +132,12 @@ fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
     voxels
 }
 
-// Turn on/off mouse grabbing
-fn set_mouse_grab(state: &mut GameState, display: &Display, grab: bool) {
+// Pause/unpause the game
+fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
+    let grab = !paused;
     display.gl_window().window().grab_cursor(grab);
     display.gl_window().window().hide_cursor(grab);
-    state.mouse_grabbed = grab;
+    state.paused = paused;
 }
 
 fn handle_mouse_input(
@@ -150,10 +151,10 @@ fn handle_mouse_input(
     }
     match btn {
         MouseButton::Left => {
-            if state.mouse_grabbed {
-                // TODO: Destroy sand
+            if state.paused {
+                set_pause(state, display, false);
             } else {
-                set_mouse_grab(state, display, true);
+                // TODO: Destroy sand
             }
         }
         _ => {}
@@ -187,7 +188,7 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
         // Change the player direction on mouse motion
         DeviceEvent::MouseMotion {
             delta: (dx, dy), ..
-        } if state.mouse_grabbed => {
+        } if !state.paused => {
             state.player.angle.x -= *dx as f32 * TURN_SPEED;
             state.player.angle.y -= *dy as f32 * TURN_SPEED;
             // Prevent the player from looking too high/low
@@ -253,7 +254,7 @@ fn do_movement(client: &mut Client, dt: f32) {
     }
 
     if key_pressed(&client.state, VirtualKeyCode::Escape) {
-        set_mouse_grab(&mut client.state, &client.gfx.display, false);
+        set_pause(&mut client.state, &client.gfx.display, true);
     }
 }
 
@@ -425,8 +426,7 @@ fn main() {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
-        // TODO: Change `mouse_grabbed` to `!paused`
-        if client.state.mouse_grabbed {
+        if !client.state.paused {
             do_movement(&mut client, dt);
             do_sandfall(&mut client.state);
         }
