@@ -213,12 +213,13 @@ fn do_input(gfx: &mut Graphics, state: &mut GameState) {
     gfx.evs.poll_events(|ev| handle_event(&ev, display, state));
 }
 
-fn key_pressed(state: &mut GameState, key: VirtualKeyCode) -> bool {
+fn key_pressed(state: &GameState, key: VirtualKeyCode) -> bool {
     *state.keys_pressed.get(&key).unwrap_or(&false)
 }
 
-fn do_movement(state: &mut GameState, dt: f32) {
-    let (forward, right, _) = compute_dir_vectors(&state.player.angle);
+// Process pressed keys to move the player
+fn do_movement(client: &mut Client, dt: f32) {
+    let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
     // Discard the y component to prevent the player from floating when they walk forward while
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
@@ -227,28 +228,32 @@ fn do_movement(state: &mut GameState, dt: f32) {
     // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
 
     // Move forward
-    if key_pressed(state, VirtualKeyCode::W) {
-        state.player.pos += forward * dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::W) {
+        client.state.player.pos += forward * dt * MOVE_SPEED
     }
     // Move backward
-    if key_pressed(state, VirtualKeyCode::R) {
-        state.player.pos -= forward * dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::R) {
+        client.state.player.pos -= forward * dt * MOVE_SPEED
     }
     // Move left
-    if key_pressed(state, VirtualKeyCode::A) {
-        state.player.pos -= right * dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::A) {
+        client.state.player.pos -= right * dt * MOVE_SPEED
     }
     // Move right
-    if key_pressed(state, VirtualKeyCode::S) {
-        state.player.pos += right * dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::S) {
+        client.state.player.pos += right * dt * MOVE_SPEED
     }
     // Move up
-    if key_pressed(state, VirtualKeyCode::Space) {
-        state.player.pos.y += dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::Space) {
+        client.state.player.pos.y += dt * MOVE_SPEED
     }
     // Move down
-    if key_pressed(state, VirtualKeyCode::LShift) {
-        state.player.pos.y -= dt * MOVE_SPEED
+    if key_pressed(&client.state, VirtualKeyCode::LShift) {
+        client.state.player.pos.y -= dt * MOVE_SPEED
+    }
+
+    if key_pressed(&client.state, VirtualKeyCode::Escape) {
+        set_mouse_grab(&mut client.state, &client.gfx.display, false);
     }
 }
 
@@ -420,7 +425,7 @@ fn main() {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
-        do_movement(&mut client.state, dt);
+        do_movement(&mut client, dt);
         do_sandfall(&mut client.state);
         render(&mut client.gfx, &mut client.state);
         client.state.frame += 1;
