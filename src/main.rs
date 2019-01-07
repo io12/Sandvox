@@ -319,7 +319,7 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 }
 
 // Make a mesh of the voxel world
-fn make_mesh(state: &GameState) -> Vec<Vertex> {
+fn make_voxels_mesh(state: &GameState) -> Vec<Vertex> {
     // TODO: Make this mesh a global
     let cube_vertices = [
         Vertex::new([0, 0, 0], [0, 0, 1]),
@@ -387,21 +387,88 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
 // Get the coordinates of the block the player is looking directly at. This is the box that a
 // wireframe is drawn around and is modified by left/right clicks.
 // TODO: Test if this is accurate
-fn get_sight_block(state: &GameState) -> Point3<f32> {
+fn get_sight_block(state: &GameState) -> Point3<u8> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
     // Raycasting
     while !voxel_at(state, pos) {
         pos += forward;
     }
-    pos
+    pos.cast().unwrap()
+}
+
+fn make_wireframe_mesh(state: &GameState) -> [Vertex; 48] {
+    let Point3 { x, y, z } = get_sight_block(state);
+    let color = [1, 1, 1];
+    // Array of lines (not triangles)
+    [
+        // From -x
+        Vertex::new([x, y, z], color),
+        Vertex::new([x, y + 1, z], color),
+        Vertex::new([x, y + 1, z], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y, z + 1], color),
+        Vertex::new([x, y, z + 1], color),
+        Vertex::new([x, y, z], color),
+        // From +x
+        Vertex::new([x + 1, y, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x + 1, y, z], color),
+        // From -y
+        Vertex::new([x, y, z], color),
+        Vertex::new([x + 1, y, z], color),
+        Vertex::new([x + 1, y, z], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x, y, z + 1], color),
+        Vertex::new([x, y, z + 1], color),
+        Vertex::new([x, y, z], color),
+        // From +y
+        Vertex::new([x, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z], color),
+        // From -z
+        Vertex::new([x, y, z], color),
+        Vertex::new([x + 1, y, z], color),
+        Vertex::new([x + 1, y, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x + 1, y + 1, z], color),
+        Vertex::new([x, y + 1, z], color),
+        Vertex::new([x, y + 1, z], color),
+        Vertex::new([x, y, z], color),
+        // From +z
+        Vertex::new([x, y, z + 1], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x + 1, y, z + 1], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x + 1, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y + 1, z + 1], color),
+        Vertex::new([x, y, z + 1], color),
+    ]
+}
+
+// Make a new mesh of the voxels, but only if the world changed since the last frame
+fn maybe_make_voxels_mesh(state: &mut GameState) {
+    if state.dirty {
+        state.mesh = make_voxels_mesh(state);
+        state.dirty = false;
+    }
 }
 
 fn render(gfx: &mut Graphics, state: &mut GameState) {
-    if state.dirty {
-        state.mesh = make_mesh(state);
-        state.dirty = false;
-    }
+    maybe_make_voxels_mesh(state);
     let vbuf = VertexBuffer::new(&gfx.display, &state.mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::TrianglesList);
