@@ -187,7 +187,7 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
         // Change the player direction on mouse motion
         DeviceEvent::MouseMotion {
             delta: (dx, dy), ..
-        } => {
+        } if state.mouse_grabbed => {
             state.player.angle.x -= *dx as f32 * TURN_SPEED;
             state.player.angle.y -= *dy as f32 * TURN_SPEED;
             // Prevent the player from looking too high/low
@@ -425,8 +425,10 @@ fn main() {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
-        do_movement(&mut client, dt);
-        do_sandfall(&mut client.state);
+        if client.state.mouse_grabbed {
+            do_movement(&mut client, dt);
+            do_sandfall(&mut client.state);
+        }
         render(&mut client.gfx, &mut client.state);
         client.state.frame += 1;
     }
