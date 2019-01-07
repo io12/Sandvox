@@ -62,6 +62,11 @@ const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
 const MOVE_SPEED: f32 = 0.01;
 const FOV: Deg<f32> = Deg(60.0);
+const INIT_POS: Point3<f32> = Point3 {
+    x: 0.0,
+    y: 1.5, // TODO: Each voxel is 1 cm and the camera is 1.5 m above ground
+    z: 0.0,
+};
 
 impl Vertex {
     fn new(pos: [u8; 3], color: [u8; 3]) -> Vertex {
@@ -92,7 +97,7 @@ impl Client {
             program,
         };
         let player = Player {
-            pos: Point3::new(0.0, 0.0, 0.0),
+            pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
         };
         let state = GameState {
@@ -264,7 +269,7 @@ fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = compute_dir_vectors(&player.angle);
     let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
     let aspect_ratio = (win_size.width / win_size.height) as f32;
-    let proj = perspective(FOV, aspect_ratio, 0.1, 100.0);
+    let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(player.pos, forward, up);
     proj * view
 }
