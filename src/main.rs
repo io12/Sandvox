@@ -38,7 +38,7 @@ struct GameState {
     frame: u32,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
-    mesh: Vec<Vertex>,
+    voxels_mesh: Vec<Vertex>,
     dirty: bool,
     keys_pressed: HashMap<VirtualKeyCode, bool>,
 }
@@ -107,7 +107,7 @@ impl Client {
             frame: 0,
             player,
             voxels: make_test_world(),
-            mesh: Vec::new(),
+            voxels_mesh: Vec::new(),
             dirty: true,
             keys_pressed: HashMap::new(),
         };
@@ -384,24 +384,46 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
     state.voxels[pos.x as usize][pos.y as usize][pos.z as usize]
 }
 
+// Checks if `pos` is within the bounds of the voxel grid. If this function returns `false`,
+// indexing the grid will cause a runtime panic.
+fn pos_in_bounds(pos: Point3<f32>) -> bool {
+    pos.x >= 0.0
+        && pos.x < VOX_L as f32
+        && pos.y >= 0.0
+        && pos.y < VOX_W as f32
+        && pos.z >= 0.0
+        && pos.z < VOX_H as f32
+}
+
 // Get the coordinates of the block the player is looking directly at. This is the box that a
-// wireframe is drawn around and is modified by left/right clicks.
+// wireframe is drawn around and is modified by left/right clicks. This function returns `None` if
+// no voxel is in the player's line of sight.
 // TODO: Test if this is accurate
-fn get_sight_block(state: &GameState) -> Point3<u8> {
+fn get_sight_block(state: &GameState) -> Option<Point3<u8>> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
+    // TODO: Fix this code repetition
+    if !pos_in_bounds(pos) {
+        return None;
+    }
     // Raycasting
     while !voxel_at(state, pos) {
         pos += forward;
+        // TODO: This doesn't work when the player is outside the bounds
+        if !pos_in_bounds(pos) {
+            return None;
+        }
     }
-    pos.cast().unwrap()
+    pos.cast()
 }
 
-fn make_wireframe_mesh(state: &GameState) -> [Vertex; 48] {
-    let Point3 { x, y, z } = get_sight_block(state);
+// Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
+// `Option` because there might not be a voxel in the line of sight.
+fn make_wireframe_mesh(state: &GameState) -> Option<[Vertex; 48]> {
+    let Point3 { x, y, z } = get_sight_block(state)?;
     let color = [1, 1, 1];
     // Array of lines (not triangles)
-    [
+    Some([
         // From -x
         Vertex::new([x, y, z], color),
         Vertex::new([x, y + 1, z], color),
@@ -456,29 +478,27 @@ fn make_wireframe_mesh(state: &GameState) -> [Vertex; 48] {
         Vertex::new([x, y + 1, z + 1], color),
         Vertex::new([x, y + 1, z + 1], color),
         Vertex::new([x, y, z + 1], color),
-    ]
+    ])
 }
 
 // Make a new mesh of the voxels, but only if the world changed since the last frame
 fn maybe_make_voxels_mesh(state: &mut GameState) {
     if state.dirty {
-        state.mesh = make_voxels_mesh(state);
+        state.voxels_mesh = make_voxels_mesh(state);
         state.dirty = false;
     }
 }
 
-fn render(gfx: &mut Graphics, state: &mut GameState) {
-    maybe_make_voxels_mesh(state);
-    let vbuf = VertexBuffer::new(&gfx.display, &state.mesh).unwrap();
-    // Do not use an index buffer
-    let ibuf = NoIndices(PrimitiveType::TrianglesList);
-
-    let matrix = compute_matrix(&state.player, gfx);
+// TODO: Comment
+fn render_voxels(gfx: &mut Graphics, state: &mut GameState, matrix: Matrix4<f32>) {
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
+    maybe_make_voxels_mesh(state);
+    let vbuf = VertexBuffer::new(&gfx.display, &state.voxels_mesh).unwrap();
+    // Do not use an index buffer
+    let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
-    // TODO: Move this somewhere
     let params = DrawParameters {
         depth: Depth {
             test: glium::draw_parameters::DepthTest::IfLess,
@@ -494,6 +514,40 @@ fn render(gfx: &mut Graphics, state: &mut GameState) {
         .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
         .unwrap();
     target.finish().unwrap();
+}
+
+// Render a wireframe around the voxel in the player's line of sight
+fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>) {
+    if let Some(mesh) = make_wireframe_mesh(state) {
+        let uniforms = uniform! {
+            matrix: array4x4(matrix)
+        };
+        let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
+        // Do not use an index buffer
+        let ibuf = NoIndices(PrimitiveType::LinesList);
+        let params = DrawParameters {
+            depth: Depth {
+                test: glium::draw_parameters::DepthTest::IfLess,
+                write: true,
+                ..Default::default()
+            },
+            backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
+            line_width: Some(5.0),
+            ..Default::default()
+        };
+        let mut target = gfx.display.draw();
+        target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+        target
+            .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
+            .unwrap();
+        target.finish().unwrap();
+    }
+}
+
+fn render(gfx: &mut Graphics, state: &mut GameState) {
+    let matrix = compute_matrix(&state.player, gfx);
+    render_voxels(gfx, state, matrix);
+    render_wireframe(gfx, state, matrix);
 }
 
 // Get the time since `prev_time` in milliseconds
