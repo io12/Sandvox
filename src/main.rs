@@ -526,12 +526,6 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>) {
         // Do not use an index buffer
         let ibuf = NoIndices(PrimitiveType::LinesList);
         let params = DrawParameters {
-            depth: Depth {
-                test: glium::draw_parameters::DepthTest::IfLess,
-                write: true,
-                ..Default::default()
-            },
-            backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
             line_width: Some(5.0),
             ..Default::default()
         };
