@@ -425,6 +425,7 @@ fn main() {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
         do_input(&mut client.gfx, &mut client.state);
+        // TODO: Change `mouse_grabbed` to `!paused`
         if client.state.mouse_grabbed {
             do_movement(&mut client, dt);
             do_sandfall(&mut client.state);
