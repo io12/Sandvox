@@ -7,8 +7,8 @@ use glium::index::{NoIndices, PrimitiveType};
 use glium::{glutin, Depth, Display, DrawParameters, Program, Surface, VertexBuffer};
 
 use glutin::{
-    ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, VirtualKeyCode,
-    WindowBuilder, WindowEvent,
+    ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, MouseButton,
+    VirtualKeyCode, WindowBuilder, WindowEvent,
 };
 
 use cgmath::conv::array4x4;
@@ -34,6 +34,7 @@ struct Player {
 
 struct GameState {
     running: bool,
+    mouse_grabbed: bool,
     frame: u32,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
@@ -100,8 +101,9 @@ impl Client {
             pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
         };
-        let state = GameState {
+        let mut state = GameState {
             running: true,
+            mouse_grabbed: false,
             frame: 0,
             player,
             voxels: make_test_world(),
@@ -109,6 +111,7 @@ impl Client {
             dirty: true,
             keys_pressed: HashMap::new(),
         };
+        set_mouse_grab(&mut state, &gfx.display, true);
         Client { gfx, state }
     }
 }
@@ -129,9 +132,42 @@ fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
     voxels
 }
 
-fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
+// Turn on/off mouse grabbing
+fn set_mouse_grab(state: &mut GameState, display: &Display, grab: bool) {
+    display.gl_window().window().grab_cursor(grab);
+    display.gl_window().window().hide_cursor(grab);
+    state.mouse_grabbed = grab;
+}
+
+fn handle_mouse_input(
+    state: &mut GameState,
+    display: &Display,
+    mouse_state: ElementState,
+    btn: MouseButton,
+) {
+    if mouse_state != ElementState::Pressed {
+        return;
+    }
+    match btn {
+        MouseButton::Left => {
+            if state.mouse_grabbed {
+                // TODO: Destroy sand
+            } else {
+                set_mouse_grab(state, display, true);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn handle_window_event(ev: &WindowEvent, display: &Display, state: &mut GameState) {
     match ev {
         WindowEvent::CloseRequested => state.running = false,
+        WindowEvent::MouseInput {
+            state: mouse_state,
+            button,
+            ..
+        } => handle_mouse_input(state, display, *mouse_state, *button),
         _ => {}
     }
 }
@@ -163,9 +199,9 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
 }
 
 // Dispatch an event
-fn handle_event(ev: &Event, state: &mut GameState) {
+fn handle_event(ev: &Event, display: &Display, state: &mut GameState) {
     match ev {
-        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
+        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, display, state),
         Event::DeviceEvent { event: ev, .. } => handle_device_event(&ev, state),
         _ => {}
     }
@@ -173,7 +209,8 @@ fn handle_event(ev: &Event, state: &mut GameState) {
 
 // TODO: Destructing can possibly be used here and in other places
 fn do_input(gfx: &mut Graphics, state: &mut GameState) {
-    gfx.evs.poll_events(|ev| handle_event(&ev, state));
+    let display = &gfx.display;
+    gfx.evs.poll_events(|ev| handle_event(&ev, display, state));
 }
 
 fn key_pressed(state: &mut GameState, key: VirtualKeyCode) -> bool {
