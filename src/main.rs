@@ -530,7 +530,7 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>) {
             ..Default::default()
         };
         let mut target = gfx.display.draw();
-        target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+        target.clear_color(0.0, 0.0, 0.0, 1.0);
         target
             .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
             .unwrap();
