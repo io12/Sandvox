@@ -4,9 +4,7 @@ extern crate cgmath;
 extern crate clamp;
 
 use glium::index::{NoIndices, PrimitiveType};
-use glium::{
-    glutin, Depth, Display, DrawParameters, Frame, IndexBuffer, Program, Surface, VertexBuffer,
-};
+use glium::{glutin, Depth, Display, DrawParameters, Frame, Program, Surface, VertexBuffer};
 
 use glutin::{
     ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, MouseButton,
