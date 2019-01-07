@@ -4,7 +4,9 @@ extern crate cgmath;
 extern crate clamp;
 
 use glium::index::{NoIndices, PrimitiveType};
-use glium::{glutin, Depth, Display, DrawParameters, Program, Surface, VertexBuffer};
+use glium::{
+    glutin, Depth, Display, DrawParameters, Frame, IndexBuffer, Program, Surface, VertexBuffer,
+};
 
 use glutin::{
     ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, MouseButton,
@@ -489,8 +491,13 @@ fn maybe_make_voxels_mesh(state: &mut GameState) {
     }
 }
 
-// TODO: Comment
-fn render_voxels(gfx: &mut Graphics, state: &mut GameState, matrix: Matrix4<f32>) {
+// Render the voxel grid, creating a new mesh if the world changed since the last frame
+fn render_voxels(
+    gfx: &mut Graphics,
+    state: &mut GameState,
+    matrix: Matrix4<f32>,
+    target: &mut Frame,
+) {
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
@@ -508,16 +515,14 @@ fn render_voxels(gfx: &mut Graphics, state: &mut GameState, matrix: Matrix4<f32>
         backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         ..Default::default()
     };
-    let mut target = gfx.display.draw();
-    target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
     target
         .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
         .unwrap();
-    target.finish().unwrap();
 }
 
-// Render a wireframe around the voxel in the player's line of sight
-fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>) {
+// Render a wireframe around the voxel in the player's line of sight, but only if there is a voxel
+// in the player's line of sight.
+fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, target: &mut Frame) {
     if let Some(mesh) = make_wireframe_mesh(state) {
         let uniforms = uniform! {
             matrix: array4x4(matrix)
@@ -529,19 +534,25 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>) {
             line_width: Some(5.0),
             ..Default::default()
         };
-        let mut target = gfx.display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 1.0);
         target
             .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
             .unwrap();
-        target.finish().unwrap();
     }
 }
 
+// Create meshes for the game objects and render them with OpenGL
 fn render(gfx: &mut Graphics, state: &mut GameState) {
     let matrix = compute_matrix(&state.player, gfx);
-    render_voxels(gfx, state, matrix);
-    render_wireframe(gfx, state, matrix);
+    let mut target = gfx.display.draw();
+    // Initialize rendering
+    target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+
+    // Render each component
+    render_voxels(gfx, state, matrix, &mut target);
+    render_wireframe(gfx, state, matrix, &mut target);
+
+    // Swap buffers to finalize rendering
+    target.finish().unwrap();
 }
 
 // Get the time since `prev_time` in milliseconds
