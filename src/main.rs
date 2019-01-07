@@ -379,6 +379,24 @@ fn make_mesh(state: &GameState) -> Vec<Vertex> {
     mesh
 }
 
+// Determine if there is a voxel at `pos`
+fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
+    state.voxels[pos.x as usize][pos.y as usize][pos.z as usize]
+}
+
+// Get the coordinates of the block the player is looking directly at. This is the box that a
+// wireframe is drawn around and is modified by left/right clicks.
+// TODO: Test if this is accurate
+fn get_sight_block(state: &GameState) -> Point3<f32> {
+    let forward = compute_forward_vector(&state.player.angle);
+    let mut pos = state.player.pos;
+    // Raycasting
+    while !voxel_at(state, pos) {
+        pos += forward;
+    }
+    pos
+}
+
 fn render(gfx: &mut Graphics, state: &mut GameState) {
     if state.dirty {
         state.mesh = make_mesh(state);
