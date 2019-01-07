@@ -133,6 +133,7 @@ fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
 }
 
 // Pause/unpause the game
+// TODO: Dim screen on pause
 fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
     let grab = !paused;
     display.gl_window().window().grab_cursor(grab);
