@@ -6,6 +6,7 @@ extern crate clamp;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::{glutin, Depth, Display, DrawParameters, Frame, Program, Surface, VertexBuffer};
 
+use glutin::dpi::LogicalSize;
 use glutin::{
     ContextBuilder, DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, MouseButton,
     VirtualKeyCode, WindowBuilder, WindowEvent,
@@ -38,7 +39,7 @@ struct GameState {
     frame: u32,
     player: Player,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
-    voxels_mesh: Vec<Vertex>,
+    voxels_mesh: Vec<VertexU8>,
     dirty: bool,
     keys_pressed: HashMap<VirtualKeyCode, bool>,
 }
@@ -48,11 +49,18 @@ struct Client {
     state: GameState,
 }
 
-implement_vertex!(Vertex, pos, color);
+implement_vertex!(VertexU8, pos, color);
 #[derive(Clone, Copy)]
-struct Vertex {
+struct VertexU8 {
     pos: [u8; 3],
     color: [u8; 3],
+}
+
+implement_vertex!(VertexF32, pos, color);
+#[derive(Clone, Copy)]
+struct VertexF32 {
+    pos: [f32; 3],
+    color: [f32; 3],
 }
 
 const VOX_L: usize = 160;
@@ -68,10 +76,17 @@ const INIT_POS: Point3<f32> = Point3 {
     y: 1.5, // TODO: Each voxel is 1 cm and the camera is 1.5 m above ground
     z: 0.0,
 };
+const CROSSHAIRS_SIZE: f32 = 0.1;
 
-impl Vertex {
-    fn new(pos: [u8; 3], color: [u8; 3]) -> Vertex {
-        Vertex { pos, color }
+impl VertexU8 {
+    fn new(pos: [u8; 3], color: [u8; 3]) -> Self {
+        Self { pos, color }
+    }
+}
+
+impl VertexF32 {
+    fn new(pos: [f32; 3], color: [f32; 3]) -> Self {
+        Self { pos, color }
     }
 }
 
@@ -307,57 +322,62 @@ fn compute_dir_vectors(angle: &Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, Vec
     (forward, right, up)
 }
 
+// Get the pixel size
+fn get_win_size(gfx: &Graphics) -> LogicalSize {
+    gfx.display.gl_window().window().get_inner_size().unwrap()
+}
+
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
 fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = compute_dir_vectors(&player.angle);
-    let win_size = gfx.display.gl_window().window().get_inner_size().unwrap();
-    let aspect_ratio = (win_size.width / win_size.height) as f32;
+    let LogicalSize { width, height } = get_win_size(gfx);
+    let aspect_ratio = (width / height) as f32;
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(player.pos, forward, up);
     proj * view
 }
 
 // Make a mesh of the voxel world
-fn make_voxels_mesh(state: &GameState) -> Vec<Vertex> {
+fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
     // TODO: Make this mesh a global
     let cube_vertices = [
-        Vertex::new([0, 0, 0], [0, 0, 1]),
-        Vertex::new([0, 0, 1], [0, 1, 0]),
-        Vertex::new([0, 1, 1], [1, 0, 0]),
-        Vertex::new([1, 1, 0], [1, 0, 0]),
-        Vertex::new([0, 0, 0], [0, 1, 0]),
-        Vertex::new([0, 1, 0], [0, 0, 1]),
-        Vertex::new([1, 0, 1], [0, 1, 0]),
-        Vertex::new([0, 0, 0], [1, 0, 0]),
-        Vertex::new([1, 0, 0], [0, 1, 0]),
-        Vertex::new([1, 1, 0], [0, 0, 1]),
-        Vertex::new([1, 0, 0], [0, 1, 0]),
-        Vertex::new([0, 0, 0], [1, 0, 0]),
-        Vertex::new([0, 0, 0], [0, 1, 0]),
-        Vertex::new([0, 1, 1], [0, 0, 1]),
-        Vertex::new([0, 1, 0], [0, 1, 0]),
-        Vertex::new([1, 0, 1], [1, 0, 0]),
-        Vertex::new([0, 0, 1], [0, 1, 0]),
-        Vertex::new([0, 0, 0], [0, 0, 1]),
-        Vertex::new([0, 1, 1], [0, 1, 0]),
-        Vertex::new([0, 0, 1], [1, 0, 0]),
-        Vertex::new([1, 0, 1], [0, 1, 0]),
-        Vertex::new([1, 1, 1], [0, 0, 1]),
-        Vertex::new([1, 0, 0], [0, 1, 0]),
-        Vertex::new([1, 1, 0], [1, 0, 0]),
-        Vertex::new([1, 0, 0], [0, 1, 0]),
-        Vertex::new([1, 1, 1], [0, 0, 1]),
-        Vertex::new([1, 0, 1], [0, 1, 0]),
-        Vertex::new([1, 1, 1], [1, 0, 0]),
-        Vertex::new([1, 1, 0], [0, 1, 0]),
-        Vertex::new([0, 1, 0], [0, 0, 1]),
-        Vertex::new([1, 1, 1], [0, 1, 0]),
-        Vertex::new([0, 1, 0], [1, 0, 0]),
-        Vertex::new([0, 1, 1], [0, 1, 0]),
-        Vertex::new([1, 1, 1], [0, 0, 1]),
-        Vertex::new([0, 1, 1], [0, 1, 0]),
-        Vertex::new([1, 0, 1], [1, 0, 0]),
+        VertexU8::new([0, 0, 0], [0, 0, 1]),
+        VertexU8::new([0, 0, 1], [0, 1, 0]),
+        VertexU8::new([0, 1, 1], [1, 0, 0]),
+        VertexU8::new([1, 1, 0], [1, 0, 0]),
+        VertexU8::new([0, 0, 0], [0, 1, 0]),
+        VertexU8::new([0, 1, 0], [0, 0, 1]),
+        VertexU8::new([1, 0, 1], [0, 1, 0]),
+        VertexU8::new([0, 0, 0], [1, 0, 0]),
+        VertexU8::new([1, 0, 0], [0, 1, 0]),
+        VertexU8::new([1, 1, 0], [0, 0, 1]),
+        VertexU8::new([1, 0, 0], [0, 1, 0]),
+        VertexU8::new([0, 0, 0], [1, 0, 0]),
+        VertexU8::new([0, 0, 0], [0, 1, 0]),
+        VertexU8::new([0, 1, 1], [0, 0, 1]),
+        VertexU8::new([0, 1, 0], [0, 1, 0]),
+        VertexU8::new([1, 0, 1], [1, 0, 0]),
+        VertexU8::new([0, 0, 1], [0, 1, 0]),
+        VertexU8::new([0, 0, 0], [0, 0, 1]),
+        VertexU8::new([0, 1, 1], [0, 1, 0]),
+        VertexU8::new([0, 0, 1], [1, 0, 0]),
+        VertexU8::new([1, 0, 1], [0, 1, 0]),
+        VertexU8::new([1, 1, 1], [0, 0, 1]),
+        VertexU8::new([1, 0, 0], [0, 1, 0]),
+        VertexU8::new([1, 1, 0], [1, 0, 0]),
+        VertexU8::new([1, 0, 0], [0, 1, 0]),
+        VertexU8::new([1, 1, 1], [0, 0, 1]),
+        VertexU8::new([1, 0, 1], [0, 1, 0]),
+        VertexU8::new([1, 1, 1], [1, 0, 0]),
+        VertexU8::new([1, 1, 0], [0, 1, 0]),
+        VertexU8::new([0, 1, 0], [0, 0, 1]),
+        VertexU8::new([1, 1, 1], [0, 1, 0]),
+        VertexU8::new([0, 1, 0], [1, 0, 0]),
+        VertexU8::new([0, 1, 1], [0, 1, 0]),
+        VertexU8::new([1, 1, 1], [0, 0, 1]),
+        VertexU8::new([0, 1, 1], [0, 1, 0]),
+        VertexU8::new([1, 0, 1], [1, 0, 0]),
     ];
 
     let mut mesh = Vec::new();
@@ -367,7 +387,7 @@ fn make_voxels_mesh(state: &GameState) -> Vec<Vertex> {
             for z in 0..VOX_H {
                 if state.voxels[x][y][z] {
                     for v in cube_vertices.iter() {
-                        mesh.push(Vertex::new(
+                        mesh.push(VertexU8::new(
                             [v.pos[0] + x as u8, v.pos[1] + y as u8, v.pos[2] + z as u8],
                             v.color,
                         ));
@@ -419,65 +439,65 @@ fn get_sight_block(state: &GameState) -> Option<Point3<u8>> {
 
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
-fn make_wireframe_mesh(state: &GameState) -> Option<[Vertex; 48]> {
+fn make_wireframe_mesh(state: &GameState) -> Option<[VertexU8; 48]> {
     let Point3 { x, y, z } = get_sight_block(state)?;
     let color = [1, 1, 1];
     // Array of lines (not triangles)
     Some([
         // From -x
-        Vertex::new([x, y, z], color),
-        Vertex::new([x, y + 1, z], color),
-        Vertex::new([x, y + 1, z], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y, z + 1], color),
-        Vertex::new([x, y, z + 1], color),
-        Vertex::new([x, y, z], color),
+        VertexU8::new([x, y, z], color),
+        VertexU8::new([x, y + 1, z], color),
+        VertexU8::new([x, y + 1, z], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
+        VertexU8::new([x, y, z], color),
         // From +x
-        Vertex::new([x + 1, y, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x + 1, y, z], color),
         // From -y
-        Vertex::new([x, y, z], color),
-        Vertex::new([x + 1, y, z], color),
-        Vertex::new([x + 1, y, z], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x, y, z + 1], color),
-        Vertex::new([x, y, z + 1], color),
-        Vertex::new([x, y, z], color),
+        VertexU8::new([x, y, z], color),
+        VertexU8::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
+        VertexU8::new([x, y, z], color),
         // From +y
-        Vertex::new([x, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z], color),
+        VertexU8::new([x, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z], color),
         // From -z
-        Vertex::new([x, y, z], color),
-        Vertex::new([x + 1, y, z], color),
-        Vertex::new([x + 1, y, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x + 1, y + 1, z], color),
-        Vertex::new([x, y + 1, z], color),
-        Vertex::new([x, y + 1, z], color),
-        Vertex::new([x, y, z], color),
+        VertexU8::new([x, y, z], color),
+        VertexU8::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x + 1, y + 1, z], color),
+        VertexU8::new([x, y + 1, z], color),
+        VertexU8::new([x, y + 1, z], color),
+        VertexU8::new([x, y, z], color),
         // From +z
-        Vertex::new([x, y, z + 1], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x + 1, y, z + 1], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x + 1, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y + 1, z + 1], color),
-        Vertex::new([x, y, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x + 1, y, z + 1], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x + 1, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y + 1, z + 1], color),
+        VertexU8::new([x, y, z + 1], color),
     ])
 }
 
@@ -538,6 +558,35 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, tar
     }
 }
 
+fn make_crosshairs_mesh() -> [VertexF32; 4] {
+    let color = [1.0, 1.0, 1.0];
+    let sz = CROSSHAIRS_SIZE;
+    [
+        VertexF32::new([-sz, 0.0, 0.0], color),
+        VertexF32::new([sz, 0.0, 0.0], color),
+        VertexF32::new([0.0, -sz, 0.0], color),
+        VertexF32::new([0.0, sz, 0.0], color),
+    ]
+}
+
+fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
+    let matrix: Matrix4<f32> = Matrix4::identity();
+    let uniforms = uniform! {
+        matrix: array4x4(matrix)
+    };
+    let mesh = make_crosshairs_mesh();
+    let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
+    // Do not use an index buffer
+    let ibuf = NoIndices(PrimitiveType::LinesList);
+    let params = DrawParameters {
+        line_width: Some(5.0),
+        ..Default::default()
+    };
+    target
+        .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
+        .unwrap();
+}
+
 // Create meshes for the game objects and render them with OpenGL
 fn render(gfx: &mut Graphics, state: &mut GameState) {
     let matrix = compute_matrix(&state.player, gfx);
@@ -548,6 +597,7 @@ fn render(gfx: &mut Graphics, state: &mut GameState) {
     // Render each component
     render_voxels(gfx, state, matrix, &mut target);
     render_wireframe(gfx, state, matrix, &mut target);
+    render_crosshairs(gfx, &mut target);
 
     // Swap buffers to finalize rendering
     target.finish().unwrap();
