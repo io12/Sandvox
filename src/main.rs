@@ -14,7 +14,7 @@ use glutin::{
 
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
-use cgmath::{perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
+use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
 
 use clamp::clamp;
 
@@ -76,7 +76,7 @@ const INIT_POS: Point3<f32> = Point3 {
     y: 1.5, // TODO: Each voxel is 1 cm and the camera is 1.5 m above ground
     z: 0.0,
 };
-const CROSSHAIRS_SIZE: f32 = 0.1;
+const CROSSHAIRS_SIZE: f32 = 15.0;
 
 impl VertexU8 {
     fn new(pos: [u8; 3], color: [u8; 3]) -> Self {
@@ -564,26 +564,32 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, tar
 }
 
 // Make a crosshairs mesh based on the window dimenions
-fn make_crosshairs_mesh(gfx: &Graphics) -> [VertexF32; 4] {
+fn make_crosshairs_mesh() -> [VertexF32; 4] {
     let color = [1.0, 1.0, 1.0];
-    // TODO: Compute crosshairs size in a better way
-    let h = get_aspect_ratio(gfx);
-    let w = 1.0 / h;
+    let sz = CROSSHAIRS_SIZE;
     [
-        VertexF32::new([-w, 0.0, 0.0], color),
-        VertexF32::new([w, 0.0, 0.0], color),
-        VertexF32::new([0.0, -h, 0.0], color),
-        VertexF32::new([0.0, h, 0.0], color),
+        VertexF32::new([-sz, 0.0, 0.0], color),
+        VertexF32::new([sz, 0.0, 0.0], color),
+        VertexF32::new([0.0, -sz, 0.0], color),
+        VertexF32::new([0.0, sz, 0.0], color),
     ]
+}
+
+// Based on the window size, compute the transformation matrix for 2D objects (such as a HUD)
+fn compute_2d_matrix(gfx: &Graphics) -> Matrix4<f32> {
+    let LogicalSize { width, height } = get_win_size(gfx);
+    let w = width as f32;
+    let h = height as f32;
+    ortho(-w, w, -h, h, -1.0, 1.0)
 }
 
 // Generate a crosshairs mesh and render it
 fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
-    let matrix: Matrix4<f32> = Matrix4::identity();
+    let matrix = compute_2d_matrix(gfx);
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
-    let mesh = make_crosshairs_mesh(gfx);
+    let mesh = make_crosshairs_mesh();
     let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::LinesList);
