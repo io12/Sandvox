@@ -327,12 +327,17 @@ fn get_win_size(gfx: &Graphics) -> LogicalSize {
     gfx.display.gl_window().window().get_inner_size().unwrap()
 }
 
+// Get the aspect ratio of the window
+fn get_aspect_ratio(gfx: &Graphics) -> f32 {
+    let LogicalSize { width, height } = get_win_size(gfx);
+    (width / height) as f32
+}
+
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
 fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = compute_dir_vectors(&player.angle);
-    let LogicalSize { width, height } = get_win_size(gfx);
-    let aspect_ratio = (width / height) as f32;
+    let aspect_ratio = get_aspect_ratio(gfx);
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(player.pos, forward, up);
     proj * view
@@ -558,23 +563,27 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, tar
     }
 }
 
-fn make_crosshairs_mesh() -> [VertexF32; 4] {
+// Make a crosshairs mesh based on the window dimenions
+fn make_crosshairs_mesh(gfx: &Graphics) -> [VertexF32; 4] {
     let color = [1.0, 1.0, 1.0];
-    let sz = CROSSHAIRS_SIZE;
+    // TODO: Compute crosshairs size in a better way
+    let h = get_aspect_ratio(gfx);
+    let w = 1.0 / h;
     [
-        VertexF32::new([-sz, 0.0, 0.0], color),
-        VertexF32::new([sz, 0.0, 0.0], color),
-        VertexF32::new([0.0, -sz, 0.0], color),
-        VertexF32::new([0.0, sz, 0.0], color),
+        VertexF32::new([-w, 0.0, 0.0], color),
+        VertexF32::new([w, 0.0, 0.0], color),
+        VertexF32::new([0.0, -h, 0.0], color),
+        VertexF32::new([0.0, h, 0.0], color),
     ]
 }
 
+// Generate a crosshairs mesh and render it
 fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
     let matrix: Matrix4<f32> = Matrix4::identity();
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
-    let mesh = make_crosshairs_mesh();
+    let mesh = make_crosshairs_mesh(gfx);
     let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::LinesList);
