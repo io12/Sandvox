@@ -77,6 +77,7 @@ const INIT_POS: Point3<f32> = Point3 {
     z: 0.0,
 };
 const CROSSHAIRS_SIZE: f32 = 15.0;
+const BLOCK_SEL_DIST: usize = 100;
 
 impl VertexU8 {
     fn new(pos: [u8; 3], color: [u8; 3]) -> Self {
@@ -404,20 +405,21 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
     mesh
 }
 
-// Determine if there is a voxel at `pos`
-fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
-    state.voxels[pos.x as usize][pos.y as usize][pos.z as usize]
+// Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
+// bounds of the voxel grid
+fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
+    Some(
+        *state
+            .voxels
+            .get(pos.x as usize)?
+            .get(pos.y as usize)?
+            .get(pos.z as usize)?,
+    )
 }
 
-// Checks if `pos` is within the bounds of the voxel grid. If this function returns `false`,
-// indexing the grid will cause a runtime panic.
-fn pos_in_bounds(pos: Point3<f32>) -> bool {
-    pos.x >= 0.0
-        && pos.x < VOX_L as f32
-        && pos.y >= 0.0
-        && pos.y < VOX_W as f32
-        && pos.z >= 0.0
-        && pos.z < VOX_H as f32
+// Determine if the is a voxel at `pos`, returning `false` when the position is out of bounds
+fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
+    voxel_at_opt(state, pos).unwrap_or(false)
 }
 
 // Get the coordinates of the block the player is looking directly at. This is the box that a
@@ -427,19 +429,14 @@ fn pos_in_bounds(pos: Point3<f32>) -> bool {
 fn get_sight_block(state: &GameState) -> Option<Point3<u8>> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
-    // TODO: Fix this code repetition
-    if !pos_in_bounds(pos) {
-        return None;
-    }
     // Raycasting
-    while !voxel_at(state, pos) {
+    for _ in 0..BLOCK_SEL_DIST {
         pos += forward;
-        // TODO: This doesn't work when the player is outside the bounds
-        if !pos_in_bounds(pos) {
-            return None;
+        if voxel_at(state, pos) {
+            return pos.cast();
         }
     }
-    pos.cast()
+    None
 }
 
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
