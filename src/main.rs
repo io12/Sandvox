@@ -419,13 +419,17 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
 // Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
 // bounds of the voxel grid
 fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
-    Some(
-        *state
-            .voxels
-            .get(pos.x as usize)?
-            .get(pos.y as usize)?
-            .get(pos.z as usize)?,
-    )
+    if pos.x >= 0.0 && pos.y >= 0.0 && pos.z >= 0.0 {
+        Some(
+            *state
+                .voxels
+                .get(pos.x as usize)?
+                .get(pos.y as usize)?
+                .get(pos.z as usize)?,
+        )
+    } else {
+        None
+    }
 }
 
 // Determine if the is a voxel at `pos`, returning `false` when the position is out of bounds
@@ -436,8 +440,6 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
 // Get the coordinates of the block the player is looking directly at and the direction of the face
 // being viewed. This is the box that a wireframe is drawn around and is modified by left/right
 // clicks. This function returns `None` if no voxel is in the player's line of sight.
-//
-// TODO: Test if this is accurate
 fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
@@ -468,9 +470,8 @@ fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
             } else if z < prev_z {
                 Dir::NegZ
             } else {
-                // All the previous vs current coords are equal, which isn't possible when
-                // voxel_at() returns `true` for the first time
-                unreachable!()
+                // All the previous vs current coords are equal; the player is inside a block
+                Dir::PosY
             };
             return Some((pos.cast()?, face));
         }
