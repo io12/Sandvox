@@ -22,17 +22,6 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::{Duration, SystemTime};
 
-// A direction along an axis
-#[derive(Copy, Clone)]
-enum Dir {
-    PosX,
-    NegX,
-    PosY,
-    NegY,
-    PosZ,
-    NegZ,
-}
-
 struct Graphics {
     display: Display,
     evs: EventsLoop,
@@ -48,7 +37,7 @@ struct Player {
 #[derive(Copy, Clone)]
 struct SightBlock {
     pos: Point3<u8>,
-    face: Dir, // The face in the line of sight
+    new_pos: Point3<u8>, // Position of new block created from right-clicking
 }
 
 struct GameState {
@@ -138,7 +127,7 @@ impl Client {
             pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
         };
-        let mut state = GameState {
+        let state = GameState {
             running: true,
             paused: true,
             frame: 0,
@@ -150,7 +139,6 @@ impl Client {
             keys_pressed: HashMap::new(),
             mouse_btns_pressed: HashMap::new(),
         };
-        set_pause(&mut state, &gfx.display, false);
         Client { gfx, state }
     }
 }
@@ -285,14 +273,15 @@ fn do_movement(client: &mut Client, dt: f32) {
 
     // Destroy sand
     if mouse_btn_pressed(&client.state, MouseButton::Left) {
-        if let Some(SightBlock {
-            pos: Point3 { x, y, z },
-            ..
-        }) = client.state.sight_block
-        {
-            client.state.voxels[x as usize][y as usize][z as usize] = false;
-            client.state.sight_block = None;
-            client.state.dirty = true;
+        if let Some(SightBlock { pos, .. }) = client.state.sight_block {
+            put_voxel(&mut client.state, pos, false);
+        }
+    }
+
+    // Create sand
+    if mouse_btn_pressed(&client.state, MouseButton::Right) {
+        if let Some(SightBlock { new_pos, .. }) = client.state.sight_block {
+            put_voxel(&mut client.state, new_pos, true);
         }
     }
 }
@@ -468,6 +457,17 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
     voxel_at_opt(state, pos).unwrap_or(false)
 }
 
+// Set a voxel at a coordinate, returning `None` if out-of-bounds
+fn put_voxel(state: &mut GameState, pos: Point3<u8>, val: bool) -> Option<()> {
+    *state
+        .voxels
+        .get_mut(pos.x as usize)?
+        .get_mut(pos.y as usize)?
+        .get_mut(pos.z as usize)? = val;
+    state.dirty = true;
+    Some(())
+}
+
 // Get the block in the player's line of sight. This is the box that a wireframe is drawn around
 // and is modified by left/right clicks. This function returns `None` if no voxel is in the
 // player's line of sight.
@@ -488,25 +488,25 @@ fn get_sight_block(state: &GameState) -> Option<SightBlock> {
             let prev_x = prev_pos.x as u8;
             let prev_y = prev_pos.y as u8;
             let prev_z = prev_pos.z as u8;
-            let face = if x > prev_x {
-                Dir::PosX
+            let new_pos = if x > prev_x {
+                Point3::new(x - 1, y, z)
             } else if x < prev_x {
-                Dir::NegX
+                Point3::new(x + 1, y, z)
             } else if y > prev_y {
-                Dir::PosY
+                Point3::new(x, y - 1, z)
             } else if y < prev_y {
-                Dir::NegY
+                Point3::new(x, y + 1, z)
             } else if z > prev_z {
-                Dir::PosZ
+                Point3::new(x, y, z - 1)
             } else if z < prev_z {
-                Dir::NegZ
+                Point3::new(x, y, z + 1)
             } else {
                 // All the previous vs current coords are equal; the player is inside a block
-                Dir::PosY
+                Point3::new(x, y - 1, z)
             };
             return Some(SightBlock {
                 pos: Point3::new(x, y, z),
-                face,
+                new_pos,
             });
         }
     }
