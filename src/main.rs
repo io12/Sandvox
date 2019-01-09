@@ -23,6 +23,7 @@ use std::f32::consts::PI;
 use std::time::{Duration, SystemTime};
 
 // A direction along an axis
+#[derive(Copy, Clone)]
 enum Dir {
     PosX,
     NegX,
@@ -44,6 +45,7 @@ struct Player {
 }
 
 // A block directly in the player's line of sight
+#[derive(Copy, Clone)]
 struct SightBlock {
     pos: Point3<u8>,
     face: Dir, // The face in the line of sight
@@ -283,7 +285,15 @@ fn do_movement(client: &mut Client, dt: f32) {
 
     // Destroy sand
     if mouse_btn_pressed(&client.state, MouseButton::Left) {
-        // TODO: Destroy sand
+        if let Some(SightBlock {
+            pos: Point3 { x, y, z },
+            ..
+        }) = client.state.sight_block
+        {
+            client.state.voxels[x as usize][y as usize][z as usize] = false;
+            client.state.sight_block = None;
+            client.state.dirty = true;
+        }
     }
 }
 
@@ -323,6 +333,7 @@ fn update_state(client: &mut Client, dt: f32) {
     } else {
         do_movement(client, dt);
         do_sandfall(&mut client.state);
+        client.state.sight_block = get_sight_block(&client.state);
     }
 }
 
@@ -505,11 +516,8 @@ fn get_sight_block(state: &GameState) -> Option<SightBlock> {
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
 fn make_wireframe_mesh(state: &GameState) -> Option<[VertexU8; 48]> {
-    let SightBlock {
-        pos: Point3 { x, y, z },
-        face,
-    } = get_sight_block(state)?;
     let color = [1, 1, 1];
+    let Point3 { x, y, z } = state.sight_block?.pos;
     // Array of lines (not triangles)
     Some([
         // From -x
