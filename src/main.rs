@@ -43,15 +43,23 @@ struct Player {
     angle: Vector2<f32>,
 }
 
+// A block directly in the player's line of sight
+struct SightBlock {
+    pos: Point3<u8>,
+    face: Dir, // The face in the line of sight
+}
+
 struct GameState {
     running: bool,
     paused: bool,
     frame: u32,
     player: Player,
+    sight_block: Option<SightBlock>,
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     voxels_mesh: Vec<VertexU8>,
     dirty: bool,
     keys_pressed: HashMap<VirtualKeyCode, bool>,
+    mouse_btns_pressed: HashMap<MouseButton, bool>,
 }
 
 struct Client {
@@ -133,10 +141,12 @@ impl Client {
             paused: true,
             frame: 0,
             player,
+            sight_block: None,
             voxels: make_test_world(),
             voxels_mesh: Vec::new(),
             dirty: true,
             keys_pressed: HashMap::new(),
+            mouse_btns_pressed: HashMap::new(),
         };
         set_pause(&mut state, &gfx.display, false);
         Client { gfx, state }
@@ -168,46 +178,28 @@ fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
     state.paused = paused;
 }
 
-fn handle_mouse_input(
-    state: &mut GameState,
-    display: &Display,
-    mouse_state: ElementState,
-    btn: MouseButton,
-) {
-    if mouse_state != ElementState::Pressed {
-        return;
-    }
-    match btn {
-        MouseButton::Left => {
-            if state.paused {
-                set_pause(state, display, false);
-            } else {
-                // TODO: Destroy sand
-            }
-        }
-        _ => {}
-    }
+fn handle_mouse_input(state: &mut GameState, mouse_state: ElementState, btn: MouseButton) {
+    let pressed = mouse_state == ElementState::Pressed;
+    state.mouse_btns_pressed.insert(btn, pressed);
 }
 
-fn handle_window_event(ev: &WindowEvent, display: &Display, state: &mut GameState) {
+fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     match ev {
         WindowEvent::CloseRequested => state.running = false,
         WindowEvent::MouseInput {
             state: mouse_state,
             button,
             ..
-        } => handle_mouse_input(state, display, *mouse_state, *button),
+        } => handle_mouse_input(state, *mouse_state, *button),
         _ => {}
     }
 }
 
-// Log whether a key was pressed/released such that `do_movement` knows if keys are held
+// Log whether a key was pressed/released such that `do_movement()` knows if keys are held
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
+    let pressed = inp.state == ElementState::Pressed;
     if let Some(key) = inp.virtual_keycode {
-        match inp.state {
-            ElementState::Pressed => state.keys_pressed.insert(key, true),
-            ElementState::Released => state.keys_pressed.insert(key, false),
-        };
+        state.keys_pressed.insert(key, pressed);
     }
 }
 
@@ -228,22 +220,25 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
 }
 
 // Dispatch an event
-fn handle_event(ev: &Event, display: &Display, state: &mut GameState) {
+fn handle_event(ev: &Event, state: &mut GameState) {
     match ev {
-        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, display, state),
+        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
         Event::DeviceEvent { event: ev, .. } => handle_device_event(&ev, state),
         _ => {}
     }
 }
 
 // TODO: Destructing can possibly be used here and in other places
-fn do_input(gfx: &mut Graphics, state: &mut GameState) {
-    let display = &gfx.display;
-    gfx.evs.poll_events(|ev| handle_event(&ev, display, state));
+fn do_input(evs: &mut EventsLoop, state: &mut GameState) {
+    evs.poll_events(|ev| handle_event(&ev, state));
 }
 
 fn key_pressed(state: &GameState, key: VirtualKeyCode) -> bool {
     *state.keys_pressed.get(&key).unwrap_or(&false)
+}
+
+fn mouse_btn_pressed(state: &GameState, btn: MouseButton) -> bool {
+    *state.mouse_btns_pressed.get(&btn).unwrap_or(&false)
 }
 
 // Process pressed keys to move the player
@@ -281,8 +276,14 @@ fn do_movement(client: &mut Client, dt: f32) {
         client.state.player.pos.y -= dt * MOVE_SPEED
     }
 
+    // Pause game
     if key_pressed(&client.state, VirtualKeyCode::Escape) {
         set_pause(&mut client.state, &client.gfx.display, true);
+    }
+
+    // Destroy sand
+    if mouse_btn_pressed(&client.state, MouseButton::Left) {
+        // TODO: Destroy sand
     }
 }
 
@@ -303,6 +304,25 @@ fn do_sandfall(state: &mut GameState) {
                 }
             }
         }
+    }
+}
+
+// Handle state updates when paused
+fn do_paused(client: &mut Client) {
+    // Unpause
+    if mouse_btn_pressed(&client.state, MouseButton::Left) {
+        set_pause(&mut client.state, &client.gfx.display, false);
+    }
+}
+
+// Update the game state for the current frame
+// NB: This isn't the only place where the game state is modified
+fn update_state(client: &mut Client, dt: f32) {
+    if client.state.paused {
+        do_paused(client);
+    } else {
+        do_movement(client, dt);
+        do_sandfall(&mut client.state);
     }
 }
 
@@ -437,10 +457,10 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
     voxel_at_opt(state, pos).unwrap_or(false)
 }
 
-// Get the coordinates of the block the player is looking directly at and the direction of the face
-// being viewed. This is the box that a wireframe is drawn around and is modified by left/right
-// clicks. This function returns `None` if no voxel is in the player's line of sight.
-fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
+// Get the block in the player's line of sight. This is the box that a wireframe is drawn around
+// and is modified by left/right clicks. This function returns `None` if no voxel is in the
+// player's line of sight.
+fn get_sight_block(state: &GameState) -> Option<SightBlock> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
     // Raycasting
@@ -451,12 +471,12 @@ fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
             // Now that the voxel is known, compute the face being observed. Because voxel_at()
             // returned true this iteration, but not last time, comparing integer coords can
             // determine the face.
-            let x = pos.x as u32;
-            let y = pos.y as u32;
-            let z = pos.z as u32;
-            let prev_x = prev_pos.x as u32;
-            let prev_y = prev_pos.y as u32;
-            let prev_z = prev_pos.z as u32;
+            let x = pos.x as u8;
+            let y = pos.y as u8;
+            let z = pos.z as u8;
+            let prev_x = prev_pos.x as u8;
+            let prev_y = prev_pos.y as u8;
+            let prev_z = prev_pos.z as u8;
             let face = if x > prev_x {
                 Dir::PosX
             } else if x < prev_x {
@@ -473,7 +493,10 @@ fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
                 // All the previous vs current coords are equal; the player is inside a block
                 Dir::PosY
             };
-            return Some((pos.cast()?, face));
+            return Some(SightBlock {
+                pos: Point3::new(x, y, z),
+                face,
+            });
         }
     }
     None
@@ -482,7 +505,10 @@ fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
 fn make_wireframe_mesh(state: &GameState) -> Option<[VertexU8; 48]> {
-    let (Point3 { x, y, z }, face) = get_sight_block(state)?;
+    let SightBlock {
+        pos: Point3 { x, y, z },
+        face,
+    } = get_sight_block(state)?;
     let color = [1, 1, 1];
     // Array of lines (not triangles)
     Some([
@@ -670,11 +696,8 @@ fn main() {
     while client.state.running {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
-        do_input(&mut client.gfx, &mut client.state);
-        if !client.state.paused {
-            do_movement(&mut client, dt);
-            do_sandfall(&mut client.state);
-        }
+        do_input(&mut client.gfx.evs, &mut client.state);
+        update_state(&mut client, dt);
         render(&mut client.gfx, &mut client.state);
         client.state.frame += 1;
     }
