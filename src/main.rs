@@ -49,8 +49,8 @@ struct GameState {
     voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
     voxels_mesh: Vec<VertexU8>,
     dirty: bool,
-    keys_pressed: HashMap<VirtualKeyCode, bool>,
-    mouse_btns_pressed: HashMap<MouseButton, bool>,
+    keys_down: HashMap<VirtualKeyCode, bool>,
+    mouse_btns_down: HashMap<MouseButton, bool>,
 }
 
 struct Client {
@@ -136,8 +136,8 @@ impl Client {
             voxels: make_test_world(),
             voxels_mesh: Vec::new(),
             dirty: true,
-            keys_pressed: HashMap::new(),
-            mouse_btns_pressed: HashMap::new(),
+            keys_down: HashMap::new(),
+            mouse_btns_down: HashMap::new(),
         };
         Client { gfx, state }
     }
@@ -169,8 +169,8 @@ fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
 }
 
 fn handle_mouse_input(state: &mut GameState, mouse_state: ElementState, btn: MouseButton) {
-    let pressed = mouse_state == ElementState::Pressed;
-    state.mouse_btns_pressed.insert(btn, pressed);
+    let down = mouse_state == ElementState::Pressed;
+    state.mouse_btns_down.insert(btn, down);
 }
 
 fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
@@ -185,11 +185,11 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     }
 }
 
-// Log whether a key was pressed/released such that `do_movement()` knows if keys are held
+// Log whether a key was pressed/released such that `do_movement()` knows if keys are down
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
-    let pressed = inp.state == ElementState::Pressed;
+    let down = inp.state == ElementState::Pressed;
     if let Some(key) = inp.virtual_keycode {
-        state.keys_pressed.insert(key, pressed);
+        state.keys_down.insert(key, down);
     }
 }
 
@@ -223,15 +223,15 @@ fn do_input(evs: &mut EventsLoop, state: &mut GameState) {
     evs.poll_events(|ev| handle_event(&ev, state));
 }
 
-fn key_pressed(state: &GameState, key: VirtualKeyCode) -> bool {
-    *state.keys_pressed.get(&key).unwrap_or(&false)
+fn key_down(state: &GameState, key: VirtualKeyCode) -> bool {
+    *state.keys_down.get(&key).unwrap_or(&false)
 }
 
-fn mouse_btn_pressed(state: &GameState, btn: MouseButton) -> bool {
-    *state.mouse_btns_pressed.get(&btn).unwrap_or(&false)
+fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
+    *state.mouse_btns_down.get(&btn).unwrap_or(&false)
 }
 
-// Process pressed keys to move the player
+// Process down keys to move the player
 fn do_movement(client: &mut Client, dt: f32) {
     let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
     // Discard the y component to prevent the player from floating when they walk forward while
@@ -242,44 +242,44 @@ fn do_movement(client: &mut Client, dt: f32) {
     // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
 
     // Move forward
-    if key_pressed(&client.state, VirtualKeyCode::W) {
+    if key_down(&client.state, VirtualKeyCode::W) {
         client.state.player.pos += forward * dt * MOVE_SPEED
     }
     // Move backward
-    if key_pressed(&client.state, VirtualKeyCode::R) {
+    if key_down(&client.state, VirtualKeyCode::R) {
         client.state.player.pos -= forward * dt * MOVE_SPEED
     }
     // Move left
-    if key_pressed(&client.state, VirtualKeyCode::A) {
+    if key_down(&client.state, VirtualKeyCode::A) {
         client.state.player.pos -= right * dt * MOVE_SPEED
     }
     // Move right
-    if key_pressed(&client.state, VirtualKeyCode::S) {
+    if key_down(&client.state, VirtualKeyCode::S) {
         client.state.player.pos += right * dt * MOVE_SPEED
     }
     // Move up
-    if key_pressed(&client.state, VirtualKeyCode::Space) {
+    if key_down(&client.state, VirtualKeyCode::Space) {
         client.state.player.pos.y += dt * MOVE_SPEED
     }
     // Move down
-    if key_pressed(&client.state, VirtualKeyCode::LShift) {
+    if key_down(&client.state, VirtualKeyCode::LShift) {
         client.state.player.pos.y -= dt * MOVE_SPEED
     }
 
     // Pause game
-    if key_pressed(&client.state, VirtualKeyCode::Escape) {
+    if key_down(&client.state, VirtualKeyCode::Escape) {
         set_pause(&mut client.state, &client.gfx.display, true);
     }
 
     // Destroy sand
-    if mouse_btn_pressed(&client.state, MouseButton::Left) {
+    if mouse_btn_down(&client.state, MouseButton::Left) {
         if let Some(SightBlock { pos, .. }) = client.state.sight_block {
             put_voxel(&mut client.state, pos, false);
         }
     }
 
     // Create sand
-    if mouse_btn_pressed(&client.state, MouseButton::Right) {
+    if mouse_btn_down(&client.state, MouseButton::Right) {
         if let Some(SightBlock { new_pos, .. }) = client.state.sight_block {
             put_voxel(&mut client.state, new_pos, true);
         }
@@ -309,7 +309,7 @@ fn do_sandfall(state: &mut GameState) {
 // Handle state updates when paused
 fn do_paused(client: &mut Client) {
     // Unpause
-    if mouse_btn_pressed(&client.state, MouseButton::Left) {
+    if mouse_btn_down(&client.state, MouseButton::Left) {
         set_pause(&mut client.state, &client.gfx.display, false);
     }
 }
