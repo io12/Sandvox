@@ -22,6 +22,16 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::{Duration, SystemTime};
 
+// A direction along an axis
+enum Dir {
+    PosX,
+    NegX,
+    PosY,
+    NegY,
+    PosZ,
+    NegZ,
+}
+
 struct Graphics {
     display: Display,
     evs: EventsLoop,
@@ -78,6 +88,7 @@ const INIT_POS: Point3<f32> = Point3 {
 };
 const CROSSHAIRS_SIZE: f32 = 15.0;
 const BLOCK_SEL_DIST: usize = 100;
+const RAYCAST_STEP: f32 = 0.1;
 
 impl VertexU8 {
     fn new(pos: [u8; 3], color: [u8; 3]) -> Self {
@@ -422,18 +433,46 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
     voxel_at_opt(state, pos).unwrap_or(false)
 }
 
-// Get the coordinates of the block the player is looking directly at. This is the box that a
-// wireframe is drawn around and is modified by left/right clicks. This function returns `None` if
-// no voxel is in the player's line of sight.
+// Get the coordinates of the block the player is looking directly at and the direction of the face
+// being viewed. This is the box that a wireframe is drawn around and is modified by left/right
+// clicks. This function returns `None` if no voxel is in the player's line of sight.
+//
 // TODO: Test if this is accurate
-fn get_sight_block(state: &GameState) -> Option<Point3<u8>> {
+fn get_sight_block(state: &GameState) -> Option<(Point3<u8>, Dir)> {
     let forward = compute_forward_vector(&state.player.angle);
     let mut pos = state.player.pos;
     // Raycasting
     for _ in 0..BLOCK_SEL_DIST {
-        pos += forward;
+        let prev_pos = pos;
+        pos += forward * RAYCAST_STEP;
         if voxel_at(state, pos) {
-            return pos.cast();
+            // Now that the voxel is known, compute the face being observed. Because voxel_at()
+            // returned true this iteration, but not last time, comparing integer coords can
+            // determine the face.
+            let x = pos.x as u32;
+            let y = pos.y as u32;
+            let z = pos.z as u32;
+            let prev_x = prev_pos.x as u32;
+            let prev_y = prev_pos.y as u32;
+            let prev_z = prev_pos.z as u32;
+            let face = if x > prev_x {
+                Dir::PosX
+            } else if x < prev_x {
+                Dir::NegX
+            } else if y > prev_y {
+                Dir::PosY
+            } else if y < prev_y {
+                Dir::NegY
+            } else if z > prev_z {
+                Dir::PosZ
+            } else if z < prev_z {
+                Dir::NegZ
+            } else {
+                // All the previous vs current coords are equal, which isn't possible when
+                // voxel_at() returns `true` for the first time
+                unreachable!()
+            };
+            return Some((pos.cast()?, face));
         }
     }
     None
@@ -442,7 +481,7 @@ fn get_sight_block(state: &GameState) -> Option<Point3<u8>> {
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
 fn make_wireframe_mesh(state: &GameState) -> Option<[VertexU8; 48]> {
-    let Point3 { x, y, z } = get_sight_block(state)?;
+    let (Point3 { x, y, z }, face) = get_sight_block(state)?;
     let color = [1, 1, 1];
     // Array of lines (not triangles)
     Some([
