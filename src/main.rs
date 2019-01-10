@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::{Duration, SystemTime};
 
+type VoxInd = i8;
+
 struct Graphics {
     display: Display,
     evs: EventsLoop,
@@ -36,8 +38,8 @@ struct Player {
 // A block directly in the player's line of sight
 #[derive(Copy, Clone)]
 struct SightBlock {
-    pos: Point3<u8>,
-    new_pos: Point3<u8>, // Position of new block created from right-clicking
+    pos: Point3<VoxInd>,
+    new_pos: Point3<VoxInd>, // Position of new block created from right-clicking
 }
 
 struct GameState {
@@ -61,8 +63,8 @@ struct Client {
 implement_vertex!(VertexU8, pos, color);
 #[derive(Clone, Copy)]
 struct VertexU8 {
-    pos: [u8; 3],
-    color: [u8; 3],
+    pos: [VoxInd; 3],
+    color: [VoxInd; 3],
 }
 
 implement_vertex!(VertexF32, pos, color);
@@ -72,9 +74,9 @@ struct VertexF32 {
     color: [f32; 3],
 }
 
-const VOX_L: usize = 160;
-const VOX_W: usize = 160;
-const VOX_H: usize = 160;
+const VOX_L: usize = 120;
+const VOX_W: usize = 120;
+const VOX_H: usize = 120;
 const WIN_W: u32 = 800;
 const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
@@ -90,7 +92,7 @@ const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 
 impl VertexU8 {
-    fn new(pos: [u8; 3], color: [u8; 3]) -> Self {
+    fn new(pos: [VoxInd; 3], color: [VoxInd; 3]) -> Self {
         Self { pos, color }
     }
 }
@@ -425,7 +427,11 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
                 if state.voxels[x][y][z] {
                     for v in cube_vertices.iter() {
                         mesh.push(VertexU8::new(
-                            [v.pos[0] + x as u8, v.pos[1] + y as u8, v.pos[2] + z as u8],
+                            [
+                                v.pos[0] + x as VoxInd,
+                                v.pos[1] + y as VoxInd,
+                                v.pos[2] + z as VoxInd,
+                            ],
                             v.color,
                         ));
                     }
@@ -434,6 +440,11 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
         }
     }
     mesh
+}
+
+// Determine if the voxel at `pos` is bedrock (one voxel below the voxel grid)
+fn bedrock_at_pos(pos: Point3<f32>) -> bool {
+    pos.x as i32 == -1 || pos.y as i32 == -1 || pos.z as i32 == -1
 }
 
 // Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
@@ -447,6 +458,8 @@ fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
                 .get(pos.y as usize)?
                 .get(pos.z as usize)?,
         )
+    } else if bedrock_at_pos(pos) {
+        Some(true)
     } else {
         None
     }
@@ -458,7 +471,7 @@ fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
 }
 
 // Set a voxel at a coordinate, returning `None` if out-of-bounds
-fn put_voxel(state: &mut GameState, pos: Point3<u8>, val: bool) -> Option<()> {
+fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, val: bool) -> Option<()> {
     *state
         .voxels
         .get_mut(pos.x as usize)?
@@ -482,12 +495,12 @@ fn get_sight_block(state: &GameState) -> Option<SightBlock> {
             // Now that the voxel is known, compute the face being observed. Because voxel_at()
             // returned true this iteration, but not last time, comparing integer coords can
             // determine the face.
-            let x = pos.x as u8;
-            let y = pos.y as u8;
-            let z = pos.z as u8;
-            let prev_x = prev_pos.x as u8;
-            let prev_y = prev_pos.y as u8;
-            let prev_z = prev_pos.z as u8;
+            let x = pos.x as VoxInd;
+            let y = pos.y as VoxInd;
+            let z = pos.z as VoxInd;
+            let prev_x = prev_pos.x as VoxInd;
+            let prev_y = prev_pos.y as VoxInd;
+            let prev_z = prev_pos.z as VoxInd;
             let new_pos = if x > prev_x {
                 Point3::new(x - 1, y, z)
             } else if x < prev_x {
