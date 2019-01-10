@@ -825,12 +825,9 @@ fn make_skybox_cubemap(gfx: &Graphics, imgs: &[RgbaImage; 6]) -> Cubemap {
 }
 
 // Load an image from a byte array. Also xy-flip the texture for OpenGL.
-fn image_from_bytes(bytes: &'static [u8]) -> RgbaImage {
-    image::load(std::io::Cursor::new(bytes), image::JPEG)
-        .unwrap()
-        .flipv()
-        .fliph()
-        .to_rgba()
+fn image_from_bytes(bytes: &'static [u8], flip: bool) -> RgbaImage {
+    let img = image::load(std::io::Cursor::new(bytes), image::JPEG).unwrap();
+    if flip { img.flipv().fliph() } else { img }.to_rgba()
 }
 
 fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
@@ -842,12 +839,12 @@ fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     let cubemap = make_skybox_cubemap(
         gfx,
         &[
-            image_from_bytes(include_bytes!("../assets/isle_rt.jpg")),
-            image_from_bytes(include_bytes!("../assets/isle_lf.jpg")),
-            image_from_bytes(include_bytes!("../assets/isle_up.jpg")),
-            image_from_bytes(include_bytes!("../assets/isle_dn.jpg")),
-            image_from_bytes(include_bytes!("../assets/isle_ft.jpg")),
-            image_from_bytes(include_bytes!("../assets/isle_bk.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_ft.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_bk.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_up.jpg"), false),
+            image_from_bytes(include_bytes!("../assets/isle_dn.jpg"), false),
+            image_from_bytes(include_bytes!("../assets/isle_lf.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_rt.jpg"), true),
         ],
     );
 
