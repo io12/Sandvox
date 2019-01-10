@@ -24,6 +24,8 @@ use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, V
 
 use clamp::clamp;
 
+use image::RgbaImage;
+
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::{Duration, SystemTime};
@@ -786,43 +788,68 @@ fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     proj * view
 }
 
+fn make_skybox_cubemap(gfx: &Graphics, imgs: &[RgbaImage; 6]) -> Cubemap {
+    let (w, h) = imgs[0].dimensions();
+    let cubemap = Cubemap::empty(&gfx.display, w).unwrap();
+    let imgs = imgs
+        .iter()
+        .map(|img| RawImage2d::from_raw_rgba_reversed(&img.clone().into_raw(), (w, h)));
+    {
+        let framebufs = [
+            CubeLayer::PositiveX,
+            CubeLayer::NegativeX,
+            CubeLayer::PositiveY,
+            CubeLayer::NegativeY,
+            CubeLayer::PositiveZ,
+            CubeLayer::NegativeZ,
+        ]
+        .iter()
+        .map(|layer| {
+            SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(*layer)).unwrap()
+        });
+        let texture_positions = imgs.map(|img| Texture2d::new(&gfx.display, img).unwrap());
+        for (tex_pos, framebuf) in texture_positions.zip(framebufs) {
+            tex_pos.as_surface().blit_whole_color_to(
+                &framebuf,
+                &glium::BlitTarget {
+                    left: 0,
+                    bottom: 0,
+                    width: w as i32,
+                    height: h as i32,
+                },
+                MagnifySamplerFilter::Linear,
+            );
+        }
+    }
+    cubemap
+}
+
+// Load an image from a byte array. Also xy-flip the texture for OpenGL.
+fn image_from_bytes(bytes: &'static [u8]) -> RgbaImage {
+    image::load(std::io::Cursor::new(bytes), image::JPEG)
+        .unwrap()
+        .flipv()
+        .fliph()
+        .to_rgba()
+}
+
 fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     let mesh = make_skybox_mesh();
     let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
-    let cubemap = Cubemap::empty(&gfx.display, 1000).unwrap();
-    #[rustfmt::skip]
-    let framebuffers = [
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveX)).unwrap(),
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeX)).unwrap(),
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveY)).unwrap(),
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeY)).unwrap(),
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveZ)).unwrap(),
-        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeZ)).unwrap(),
-    ];
-    let img = image::load(
-        std::io::Cursor::new(&include_bytes!("../assets/sky.png")[..]),
-        image::PNG,
-    )
-    .unwrap()
-    .to_rgba();
-    let dimensions = img.dimensions();
-    let img = RawImage2d::from_raw_rgba_reversed(&img.into_raw(), dimensions);
-    let tex_pos = Texture2d::new(&gfx.display, img).unwrap();
-    for framebuffer in framebuffers.iter() {
-        tex_pos.as_surface().blit_whole_color_to(
-            framebuffer,
-            &glium::BlitTarget {
-                left: 0,
-                bottom: 0,
-                width: 512,
-                height: 512,
-            },
-            MagnifySamplerFilter::Linear,
-        );
-    }
+    let cubemap = make_skybox_cubemap(
+        gfx,
+        &[
+            image_from_bytes(include_bytes!("../assets/isle_rt.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_lf.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_up.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_dn.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_ft.jpg")),
+            image_from_bytes(include_bytes!("../assets/isle_bk.jpg")),
+        ],
+    );
 
     let uniforms = uniform! {
         matrix: array4x4(matrix),
