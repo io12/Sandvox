@@ -27,7 +27,9 @@ type VoxInd = i8;
 struct Graphics {
     display: Display,
     evs: EventsLoop,
-    program: Program, // GLSL shader program
+    // GLSL shader programs
+    prog: Program,
+    sky_prog: Program,
 }
 
 struct Player {
@@ -113,10 +115,17 @@ impl Client {
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
         // Compile program from GLSL shaders
-        let program = Program::from_source(
+        let prog = Program::from_source(
             &display,
             include_str!("shaders/vert.glsl"),
             include_str!("shaders/frag.glsl"),
+            None,
+        )
+        .unwrap();
+        let sky_prog = Program::from_source(
+            &display,
+            include_str!("shaders/sky_vert.glsl"),
+            include_str!("shaders/sky_frag.glsl"),
             None,
         )
         .unwrap();
@@ -124,7 +133,8 @@ impl Client {
         let gfx = Graphics {
             display,
             evs,
-            program,
+            prog,
+            sky_prog,
         };
         let player = Player {
             pos: INIT_POS,
@@ -624,7 +634,7 @@ fn render_voxels(
         ..Default::default()
     };
     target
-        .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.prog, &uniforms, &params)
         .unwrap();
 }
 
@@ -643,7 +653,7 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, tar
             ..Default::default()
         };
         target
-            .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
+            .draw(&vbuf, &ibuf, &gfx.prog, &uniforms, &params)
             .unwrap();
     }
 }
@@ -683,9 +693,11 @@ fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
         ..Default::default()
     };
     target
-        .draw(&vbuf, &ibuf, &gfx.program, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.prog, &uniforms, &params)
         .unwrap();
 }
+
+fn render_skybox() {}
 
 // Create meshes for the game objects and render them with OpenGL
 fn render(gfx: &mut Graphics, state: &mut GameState) {
@@ -695,6 +707,7 @@ fn render(gfx: &mut Graphics, state: &mut GameState) {
     target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
     // Render each component
+    render_skybox();
     render_voxels(gfx, state, matrix, &mut target);
     render_wireframe(gfx, state, matrix, &mut target);
     render_crosshairs(gfx, &mut target);
