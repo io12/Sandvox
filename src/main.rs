@@ -4,6 +4,7 @@ extern crate cgmath;
 extern crate clamp;
 
 use glium::index::{NoIndices, PrimitiveType};
+use glium::texture::Cubemap;
 use glium::{glutin, Depth, Display, DrawParameters, Frame, Program, Surface, VertexBuffer};
 
 use glutin::dpi::LogicalSize;
@@ -697,7 +698,47 @@ fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
         .unwrap();
 }
 
-fn render_skybox() {}
+fn make_skybox_mesh() -> [VertexF32] {
+    let sz = 100.0;
+    let color = [];
+    [
+        // Front
+        VertexF32::new([-sz, -sz, sz], color),
+        VertexF32::new([sz, -sz, sz], color),
+        VertexF32::new([sz, sz, sz], color),
+        VertexF32::new([-sz, sz, sz], color),
+        // Right
+        VertexF32::new([sz, -sz, sz], color),
+        VertexF32::new([sz, -sz, -sz], color),
+        VertexF32::new([sz, sz, -sz], color),
+        VertexF32::new([sz, sz, sz], color),
+        // Back
+        VertexF32::new([-sz, -sz, -sz], color),
+        VertexF32::new([-sz, sz, -sz], color),
+        VertexF32::new([sz, sz, -sz], color),
+        VertexF32::new([sz, -sz, -sz], color),
+        // Left
+        VertexF32::new([-sz, -sz, sz], color),
+        VertexF32::new([-sz, sz, sz], color),
+        VertexF32::new([-sz, sz, -sz], color),
+        VertexF32::new([-sz, -sz, -sz], color),
+        // Bottom
+        VertexF32::new([-sz, -sz, sz], color),
+        VertexF32::new([-sz, -sz, -sz], color),
+        VertexF32::new([sz, -sz, -sz], color),
+        VertexF32::new([sz, -sz, sz], color),
+        // Top
+        VertexF32::new([-sz, sz, sz], color),
+        VertexF32::new([sz, sz, sz], color),
+        VertexF32::new([sz, sz, -sz], color),
+        VertexF32::new([-sz, sz, -sz], color),
+    ]
+}
+
+fn render_skybox(gfx: &Graphics, target: &mut Frame) {
+    let cubemap = Cubemap::empty(&gfx.display, 512).unwrap();
+    let mesh = make_skybox_mesh();
+}
 
 // Create meshes for the game objects and render them with OpenGL
 fn render(gfx: &mut Graphics, state: &mut GameState) {
@@ -707,7 +748,7 @@ fn render(gfx: &mut Graphics, state: &mut GameState) {
     target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
     // Render each component
-    render_skybox();
+    render_skybox(gfx, &mut target);
     render_voxels(gfx, state, matrix, &mut target);
     render_wireframe(gfx, state, matrix, &mut target);
     render_crosshairs(gfx, &mut target);
