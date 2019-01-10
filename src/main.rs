@@ -86,7 +86,7 @@ const INIT_POS: Point3<f32> = Point3 {
     z: 0.0,
 };
 const CROSSHAIRS_SIZE: f32 = 15.0;
-const BLOCK_SEL_DIST: usize = 100;
+const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 
 impl VertexU8 {
