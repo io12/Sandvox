@@ -7,3 +7,4 @@ authors = ["Benjamin Levy <blevy@protonmail.com>"]
 glium = "*"
 cgmath = "0.16.1"
 clamp = "0.1.0"
+image = "0.20.1"

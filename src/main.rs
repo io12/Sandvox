@@ -2,10 +2,15 @@
 extern crate glium;
 extern crate cgmath;
 extern crate clamp;
+extern crate image;
 
+use glium::framebuffer::SimpleFrameBuffer;
 use glium::index::{NoIndices, PrimitiveType};
-use glium::texture::Cubemap;
-use glium::{glutin, Depth, Display, DrawParameters, Frame, Program, Surface, VertexBuffer};
+use glium::texture::{CubeLayer, Cubemap, RawImage2d};
+use glium::uniforms::MagnifySamplerFilter;
+use glium::{
+    glutin, Depth, Display, DrawParameters, Frame, Program, Surface, Texture2d, VertexBuffer,
+};
 
 use glutin::dpi::LogicalSize;
 use glutin::{
@@ -81,7 +86,7 @@ struct WireframeVertex {
 implement_vertex!(CrosshairsVertex, pos);
 #[derive(Clone, Copy)]
 struct CrosshairsVertex {
-    pos: [f32; 2],
+    pos: [f32; 3],
 }
 
 implement_vertex!(SkyboxVertex, pos);
@@ -106,22 +111,21 @@ const INIT_POS: Point3<f32> = Point3 {
 const CROSSHAIRS_SIZE: f32 = 15.0;
 const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
+const SKYBOX_SIZE: f32 = 1.0;
 
 impl VoxelVertex {
     fn new(pos: [VoxInd; 3], color: [VoxInd; 3]) -> Self {
         Self { pos, color }
     }
 }
-
 impl WireframeVertex {
     fn new(x: VoxInd, y: VoxInd, z: VoxInd) -> Self {
         Self { pos: [x, y, z] }
     }
 }
-
 impl CrosshairsVertex {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: [x, y] }
+        Self { pos: [x, y, 0.0] }
     }
 }
 impl SkyboxVertex {
@@ -412,7 +416,7 @@ fn get_aspect_ratio(gfx: &Graphics) -> f32 {
 
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
-fn compute_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
+fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = compute_dir_vectors(&player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
@@ -709,8 +713,7 @@ fn compute_2d_matrix(gfx: &Graphics) -> Matrix4<f32> {
 }
 
 // Generate a crosshairs mesh and render it
-fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
-    let matrix = compute_2d_matrix(gfx);
+fn render_crosshairs(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     let uniforms = uniform! {
         matrix: array4x4(matrix)
     };
@@ -727,60 +730,129 @@ fn render_crosshairs(gfx: &Graphics, target: &mut Frame) {
         .unwrap();
 }
 
-fn make_skybox_mesh() -> [SkyboxVertex] {
-    let sz = 100.0;
-    let color = [];
+fn make_skybox_mesh() -> [SkyboxVertex; 36] {
+    let sz = SKYBOX_SIZE / 2.0;
     [
         // Front
-        SkyboxVertex::new(-sz, -sz, sz),
-        SkyboxVertex::new(sz, -sz, sz),
-        SkyboxVertex::new(sz, sz, sz),
-        SkyboxVertex::new(-sz, sz, sz),
+        SkyboxVertex::new(-sz, -sz, sz), // 0
+        SkyboxVertex::new(sz, sz, sz),   // 2
+        SkyboxVertex::new(sz, -sz, sz),  // 1
+        SkyboxVertex::new(-sz, -sz, sz), // 0
+        SkyboxVertex::new(-sz, sz, sz),  // 3
+        SkyboxVertex::new(sz, sz, sz),   // 2
         // Right
-        SkyboxVertex::new(sz, -sz, sz),
-        SkyboxVertex::new(sz, -sz, -sz),
-        SkyboxVertex::new(sz, sz, -sz),
-        SkyboxVertex::new(sz, sz, sz),
+        SkyboxVertex::new(sz, -sz, sz),  // 4
+        SkyboxVertex::new(sz, sz, -sz),  // 6
+        SkyboxVertex::new(sz, -sz, -sz), // 5
+        SkyboxVertex::new(sz, -sz, sz),  // 4
+        SkyboxVertex::new(sz, sz, sz),   // 7
+        SkyboxVertex::new(sz, sz, -sz),  // 6
         // Back
-        SkyboxVertex::new(-sz, -sz, -sz),
-        SkyboxVertex::new(-sz, sz, -sz),
-        SkyboxVertex::new(sz, sz, -sz),
-        SkyboxVertex::new(sz, -sz, -sz),
+        SkyboxVertex::new(-sz, -sz, -sz), // 8
+        SkyboxVertex::new(sz, sz, -sz),   // 10
+        SkyboxVertex::new(-sz, sz, -sz),  // 9
+        SkyboxVertex::new(-sz, -sz, -sz), // 8
+        SkyboxVertex::new(sz, -sz, -sz),  // 11
+        SkyboxVertex::new(sz, sz, -sz),   // 10
         // Left
-        SkyboxVertex::new(-sz, -sz, sz),
-        SkyboxVertex::new(-sz, sz, sz),
-        SkyboxVertex::new(-sz, sz, -sz),
-        SkyboxVertex::new(-sz, -sz, -sz),
+        SkyboxVertex::new(-sz, -sz, sz),  // 12
+        SkyboxVertex::new(-sz, sz, -sz),  // 14
+        SkyboxVertex::new(-sz, sz, sz),   // 13
+        SkyboxVertex::new(-sz, -sz, sz),  // 12
+        SkyboxVertex::new(-sz, -sz, -sz), // 15
+        SkyboxVertex::new(-sz, sz, -sz),  // 14
         // Bottom
-        SkyboxVertex::new(-sz, -sz, sz),
-        SkyboxVertex::new(-sz, -sz, -sz),
-        SkyboxVertex::new(sz, -sz, -sz),
-        SkyboxVertex::new(sz, -sz, sz),
+        SkyboxVertex::new(-sz, -sz, sz),  // 16
+        SkyboxVertex::new(sz, -sz, -sz),  // 18
+        SkyboxVertex::new(-sz, -sz, -sz), // 17
+        SkyboxVertex::new(-sz, -sz, sz),  // 16
+        SkyboxVertex::new(sz, -sz, sz),   // 19
+        SkyboxVertex::new(sz, -sz, -sz),  // 18
         // Top
-        SkyboxVertex::new(-sz, sz, sz),
-        SkyboxVertex::new(sz, sz, sz),
-        SkyboxVertex::new(sz, sz, -sz),
-        SkyboxVertex::new(-sz, sz, -sz),
+        SkyboxVertex::new(-sz, sz, sz),  // 20
+        SkyboxVertex::new(sz, sz, -sz),  // 22
+        SkyboxVertex::new(sz, sz, sz),   // 21
+        SkyboxVertex::new(-sz, sz, sz),  // 20
+        SkyboxVertex::new(-sz, sz, -sz), // 23
+        SkyboxVertex::new(sz, sz, -sz),  // 22
     ]
 }
 
-fn render_skybox(gfx: &Graphics, target: &mut Frame) {
-    let cubemap = Cubemap::empty(&gfx.display, 512).unwrap();
+fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
+    let (forward, _, up) = compute_dir_vectors(&player.angle);
+    let aspect_ratio = get_aspect_ratio(gfx);
+    let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
+    let view = Matrix4::look_at_dir(Point3::new(0.0, 0.0, 0.0), forward, up);
+    proj * view
+}
+
+fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     let mesh = make_skybox_mesh();
+    let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
+    // Do not use an index buffer
+    let ibuf = NoIndices(PrimitiveType::TrianglesList);
+
+    let cubemap = Cubemap::empty(&gfx.display, 1000).unwrap();
+    #[rustfmt::skip]
+    let framebuffers = [
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveX)).unwrap(),
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeX)).unwrap(),
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveY)).unwrap(),
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeY)).unwrap(),
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::PositiveZ)).unwrap(),
+        SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(CubeLayer::NegativeZ)).unwrap(),
+    ];
+    let img = image::load(
+        std::io::Cursor::new(&include_bytes!("../assets/sky.png")[..]),
+        image::PNG,
+    )
+    .unwrap()
+    .to_rgba();
+    let dimensions = img.dimensions();
+    let img = RawImage2d::from_raw_rgba_reversed(&img.into_raw(), dimensions);
+    let tex_pos = Texture2d::new(&gfx.display, img).unwrap();
+    for framebuffer in framebuffers.iter() {
+        tex_pos.as_surface().blit_whole_color_to(
+            framebuffer,
+            &glium::BlitTarget {
+                left: 0,
+                bottom: 0,
+                width: 512,
+                height: 512,
+            },
+            MagnifySamplerFilter::Linear,
+        );
+    }
+
+    let uniforms = uniform! {
+        matrix: array4x4(matrix),
+        cubemap: cubemap.sampled().magnify_filter(MagnifySamplerFilter::Linear),
+    };
+
+    let params = DrawParameters {
+        // TODO: backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
+        ..Default::default()
+    };
+    target
+        .draw(&vbuf, &ibuf, &gfx.sky_prog, &uniforms, &params)
+        .unwrap();
 }
 
 // Create meshes for the game objects and render them with OpenGL
 fn render(gfx: &mut Graphics, state: &mut GameState) {
-    let matrix = compute_matrix(&state.player, gfx);
+    let vox_matrix = compute_voxel_matrix(&state.player, gfx);
+    let matrix_2d = compute_2d_matrix(gfx);
+    let skybox_matrix = compute_skybox_matrix(&state.player, gfx);
+
     let mut target = gfx.display.draw();
     // Initialize rendering
     target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
     // Render each component
-    render_skybox(gfx, &mut target);
-    render_voxels(gfx, state, matrix, &mut target);
-    render_wireframe(gfx, state, matrix, &mut target);
-    render_crosshairs(gfx, &mut target);
+    render_skybox(gfx, skybox_matrix, &mut target);
+    render_voxels(gfx, state, vox_matrix, &mut target);
+    render_wireframe(gfx, state, vox_matrix, &mut target);
+    render_crosshairs(gfx, matrix_2d, &mut target);
 
     // Swap buffers to finalize rendering
     target.finish().unwrap();
