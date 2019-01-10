@@ -36,6 +36,7 @@ struct Player {
 }
 
 // A block directly in the player's line of sight
+// TODO: This isn't needed because `pos` is unused now
 #[derive(Copy, Clone)]
 struct SightBlock {
     pos: Point3<VoxInd>,
@@ -442,8 +443,8 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VertexU8> {
     mesh
 }
 
-// Determine if the voxel at `pos` is bedrock (one voxel below the voxel grid)
-fn bedrock_at_pos(pos: Point3<f32>) -> bool {
+// Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
+fn boundary_at_pos(pos: Point3<f32>) -> bool {
     pos.x as i32 == -1 || pos.y as i32 == -1 || pos.z as i32 == -1
 }
 
@@ -458,7 +459,7 @@ fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
                 .get(pos.y as usize)?
                 .get(pos.z as usize)?,
         )
-    } else if bedrock_at_pos(pos) {
+    } else if boundary_at_pos(pos) {
         Some(true)
     } else {
         None
@@ -530,7 +531,7 @@ fn get_sight_block(state: &GameState) -> Option<SightBlock> {
 // `Option` because there might not be a voxel in the line of sight.
 fn make_wireframe_mesh(state: &GameState) -> Option<[VertexU8; 48]> {
     let color = [1, 1, 1];
-    let Point3 { x, y, z } = state.sight_block?.pos;
+    let Point3 { x, y, z } = state.sight_block?.new_pos;
     // Array of lines (not triangles)
     Some([
         // From -x
