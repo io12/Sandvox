@@ -496,7 +496,12 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
 
 // Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
 fn boundary_at_pos(pos: Point3<f32>) -> bool {
-    pos.x as i32 == -1 || pos.y as i32 == -1 || pos.z as i32 == -1
+    pos.x as i32 == -1
+        || pos.y as i32 == -1
+        || pos.z as i32 == -1
+        || pos.x as usize == VOX_L
+        || pos.y as usize == VOX_W
+        || pos.z as usize == VOX_H
 }
 
 // Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
