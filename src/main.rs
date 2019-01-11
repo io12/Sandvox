@@ -35,6 +35,7 @@ type VoxInd = i8;
 struct Graphics {
     display: Display,
     evs: EventsLoop,
+    cubemap: Cubemap,
     // GLSL shader programs
     voxel_prog: Program,
     line_prog: Program,
@@ -144,6 +145,7 @@ impl Client {
         let ctx = ContextBuilder::new().with_depth_buffer(24);
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
+        let cubemap = make_skybox_cubemap(&display);
         // Compile program from GLSL shaders
         let voxel_prog = Program::from_source(
             &display,
@@ -170,6 +172,7 @@ impl Client {
         let gfx = Graphics {
             display,
             evs,
+            cubemap,
             voxel_prog,
             line_prog,
             sky_prog,
@@ -788,9 +791,9 @@ fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     proj * view
 }
 
-fn make_skybox_cubemap(gfx: &Graphics, imgs: &[RgbaImage; 6]) -> Cubemap {
+fn make_skybox_cubemap_with_images(display: &Display, imgs: &[RgbaImage; 6]) -> Cubemap {
     let (w, h) = imgs[0].dimensions();
-    let cubemap = Cubemap::empty(&gfx.display, w).unwrap();
+    let cubemap = Cubemap::empty(display, w).unwrap();
     let imgs = imgs
         .iter()
         .map(|img| RawImage2d::from_raw_rgba_reversed(&img.clone().into_raw(), (w, h)));
@@ -804,10 +807,8 @@ fn make_skybox_cubemap(gfx: &Graphics, imgs: &[RgbaImage; 6]) -> Cubemap {
             CubeLayer::NegativeZ,
         ]
         .iter()
-        .map(|layer| {
-            SimpleFrameBuffer::new(&gfx.display, cubemap.main_level().image(*layer)).unwrap()
-        });
-        let texture_positions = imgs.map(|img| Texture2d::new(&gfx.display, img).unwrap());
+        .map(|layer| SimpleFrameBuffer::new(display, cubemap.main_level().image(*layer)).unwrap());
+        let texture_positions = imgs.map(|img| Texture2d::new(display, img).unwrap());
         for (tex_pos, framebuf) in texture_positions.zip(framebufs) {
             tex_pos.as_surface().blit_whole_color_to(
                 &framebuf,
@@ -824,6 +825,20 @@ fn make_skybox_cubemap(gfx: &Graphics, imgs: &[RgbaImage; 6]) -> Cubemap {
     cubemap
 }
 
+fn make_skybox_cubemap(display: &Display) -> Cubemap {
+    make_skybox_cubemap_with_images(
+        display,
+        &[
+            image_from_bytes(include_bytes!("../assets/isle_ft.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_bk.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_up.jpg"), false),
+            image_from_bytes(include_bytes!("../assets/isle_dn.jpg"), false),
+            image_from_bytes(include_bytes!("../assets/isle_lf.jpg"), true),
+            image_from_bytes(include_bytes!("../assets/isle_rt.jpg"), true),
+        ],
+    )
+}
+
 // Load an image from a byte array. Also xy-flip the texture for OpenGL.
 fn image_from_bytes(bytes: &'static [u8], flip: bool) -> RgbaImage {
     let img = image::load(std::io::Cursor::new(bytes), image::JPEG).unwrap();
@@ -836,21 +851,9 @@ fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     // Do not use an index buffer
     let ibuf = NoIndices(PrimitiveType::TrianglesList);
 
-    let cubemap = make_skybox_cubemap(
-        gfx,
-        &[
-            image_from_bytes(include_bytes!("../assets/isle_ft.jpg"), true),
-            image_from_bytes(include_bytes!("../assets/isle_bk.jpg"), true),
-            image_from_bytes(include_bytes!("../assets/isle_up.jpg"), false),
-            image_from_bytes(include_bytes!("../assets/isle_dn.jpg"), false),
-            image_from_bytes(include_bytes!("../assets/isle_lf.jpg"), true),
-            image_from_bytes(include_bytes!("../assets/isle_rt.jpg"), true),
-        ],
-    );
-
     let uniforms = uniform! {
         matrix: array4x4(matrix),
-        cubemap: cubemap.sampled().magnify_filter(MagnifySamplerFilter::Linear),
+        cubemap: gfx.cubemap.sampled().magnify_filter(MagnifySamplerFilter::Linear),
     };
 
     let params = DrawParameters {
