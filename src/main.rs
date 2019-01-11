@@ -857,7 +857,7 @@ fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
     };
 
     let params = DrawParameters {
-        // TODO: backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
+        backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         ..Default::default()
     };
     target
