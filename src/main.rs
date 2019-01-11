@@ -46,6 +46,7 @@ struct Graphics {
 struct Player {
     pos: Point3<f32>,
     angle: Vector2<f32>,
+    velocity: Vector3<f32>,
     noclip: bool,
 }
 
@@ -106,7 +107,8 @@ const VOX_H: usize = 120;
 const WIN_W: u32 = 800;
 const WIN_H: u32 = 600;
 const TURN_SPEED: f32 = 0.01;
-const MOVE_SPEED: f32 = 0.01;
+const FLY_SPEED: f32 = 30.0; // In voxels per second
+const WALK_SPEED: f32 = 5.0; // In voxels per second
 const FOV: Deg<f32> = Deg(60.0);
 const INIT_POS: Point3<f32> = Point3 {
     x: 0.0,
@@ -117,6 +119,7 @@ const CROSSHAIRS_SIZE: f32 = 15.0;
 const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
+const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity
 
 impl VoxelVertex {
     fn new(pos: [VoxInd; 3], color: [VoxInd; 3]) -> Self {
@@ -182,6 +185,7 @@ impl Client {
         let player = Player {
             pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
+            velocity: Vector3::new(0.0, 0.0, 0.0),
             noclip: true,
         };
         let state = GameState {
@@ -300,39 +304,50 @@ fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
     *state.mouse_btns_down.get(&btn).unwrap_or(&false)
 }
 
-// Process down keys to move the player
-fn do_keys_down(client: &mut Client, dt: f32) {
+fn is_falling(player: &Player) -> bool {
+    !player.noclip && !is_standing(player)
+}
+
+// Process down keys to change the game state
+fn do_keys_down(client: &mut Client) {
     let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
     // Discard the y component to prevent the player from floating when they walk forward while
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
     let right = right.normalize();
+    let move_speed = if client.state.player.noclip {
+        FLY_SPEED
+    } else {
+        WALK_SPEED
+    };
 
-    // Multiply by the time delta so speed of motion is constant (even if framerate isn't)
-
-    // Move forward
-    if key_down(&client.state, VirtualKeyCode::W) {
-        client.state.player.pos += forward * dt * MOVE_SPEED
-    }
-    // Move backward
-    if key_down(&client.state, VirtualKeyCode::R) {
-        client.state.player.pos -= forward * dt * MOVE_SPEED
-    }
-    // Move left
-    if key_down(&client.state, VirtualKeyCode::A) {
-        client.state.player.pos -= right * dt * MOVE_SPEED
-    }
-    // Move right
-    if key_down(&client.state, VirtualKeyCode::S) {
-        client.state.player.pos += right * dt * MOVE_SPEED
-    }
-    // Move up
-    if key_down(&client.state, VirtualKeyCode::Space) {
-        client.state.player.pos.y += dt * MOVE_SPEED
-    }
-    // Move down
-    if key_down(&client.state, VirtualKeyCode::LShift) {
-        client.state.player.pos.y -= dt * MOVE_SPEED
+    // TODO: Make this clearer
+    if !is_falling(&client.state.player) {
+        client.state.player.velocity = Vector3::new(0.0, 0.0, 0.0);
+        // Move forward
+        if key_down(&client.state, VirtualKeyCode::W) {
+            client.state.player.velocity += forward * move_speed
+        }
+        // Move backward
+        if key_down(&client.state, VirtualKeyCode::R) {
+            client.state.player.velocity -= forward * move_speed
+        }
+        // Move left
+        if key_down(&client.state, VirtualKeyCode::A) {
+            client.state.player.velocity -= right * move_speed
+        }
+        // Move right
+        if key_down(&client.state, VirtualKeyCode::S) {
+            client.state.player.velocity += right * move_speed
+        }
+        // Jump/fly up
+        if key_down(&client.state, VirtualKeyCode::Space) {
+            client.state.player.velocity.y = move_speed
+        }
+        // Move down
+        if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.noclip {
+            client.state.player.velocity.y = -move_speed
+        }
     }
 
     // Pause game
@@ -353,6 +368,16 @@ fn do_keys_down(client: &mut Client, dt: f32) {
             put_voxel(&mut client.state, new_pos, true);
         }
     }
+}
+
+// TODO: Not a good function
+fn is_standing(player: &Player) -> bool {
+    player.pos.y <= 0.0
+}
+
+fn do_player_physics(player: &mut Player, dt: f32) {
+    player.pos += player.velocity * dt;
+    player.velocity.y -= ACCEL_GRAV * dt;
 }
 
 // Propagate the voxels downwards (gravity)
@@ -389,7 +414,8 @@ fn update_state(client: &mut Client, dt: f32) {
     if client.state.paused {
         do_paused(client);
     } else {
-        do_keys_down(client, dt);
+        do_keys_down(client);
+        do_player_physics(&mut client.state.player, dt);
         do_sandfall(&mut client.state);
         client.state.sight_block = get_sight_block(&client.state);
     }
@@ -905,10 +931,10 @@ fn render(gfx: &mut Graphics, state: &mut GameState) {
     target.finish().unwrap();
 }
 
-// Get the time since `prev_time` in milliseconds
+// Get the time since `prev_time` in seconds
 fn get_time_delta(prev_time: &SystemTime) -> f32 {
     let elapsed = prev_time.elapsed().unwrap_or(Duration::new(0, 0));
-    elapsed.as_secs() as f32 * 1000.0 + elapsed.subsec_millis() as f32
+    elapsed.as_secs() as f32 + elapsed.subsec_millis() as f32 / 1000.0
 }
 
 fn main() {
