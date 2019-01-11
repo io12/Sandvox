@@ -6,7 +6,8 @@ extern crate image;
 
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::index::{NoIndices, PrimitiveType};
-use glium::texture::{CubeLayer, Cubemap, RawImage2d};
+use glium::texture::srgb_cubemap::SrgbCubemap;
+use glium::texture::{CubeLayer, RawImage2d};
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{
     glutin, Depth, Display, DrawParameters, Frame, Program, Surface, Texture2d, VertexBuffer,
@@ -35,7 +36,7 @@ type VoxInd = i8;
 struct Graphics {
     display: Display,
     evs: EventsLoop,
-    cubemap: Cubemap,
+    cubemap: SrgbCubemap,
     // GLSL shader programs
     voxel_prog: Program,
     line_prog: Program,
@@ -796,9 +797,9 @@ fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     proj * view
 }
 
-fn make_skybox_cubemap_with_images(display: &Display, imgs: &[RgbaImage; 6]) -> Cubemap {
+fn make_skybox_cubemap_with_images(display: &Display, imgs: &[RgbaImage; 6]) -> SrgbCubemap {
     let (w, h) = imgs[0].dimensions();
-    let cubemap = Cubemap::empty(display, w).unwrap();
+    let cubemap = SrgbCubemap::empty(display, w).unwrap();
     let imgs = imgs
         .iter()
         .map(|img| RawImage2d::from_raw_rgba_reversed(&img.clone().into_raw(), (w, h)));
@@ -830,7 +831,7 @@ fn make_skybox_cubemap_with_images(display: &Display, imgs: &[RgbaImage; 6]) -> 
     cubemap
 }
 
-fn make_skybox_cubemap(display: &Display) -> Cubemap {
+fn make_skybox_cubemap(display: &Display) -> SrgbCubemap {
     make_skybox_cubemap_with_images(
         display,
         &[
