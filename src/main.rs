@@ -46,6 +46,7 @@ struct Graphics {
 struct Player {
     pos: Point3<f32>,
     angle: Vector2<f32>,
+    noclip: bool,
 }
 
 // A block directly in the player's line of sight
@@ -181,6 +182,7 @@ impl Client {
         let player = Player {
             pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
+            noclip: true,
         };
         let state = GameState {
             running: true,
@@ -240,10 +242,22 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     }
 }
 
-// Log whether a key was pressed/released such that `do_movement()` knows if keys are down
+// Change game state based on a keypress. This is needed because `do_keys_down()` only knows if a
+// key is currently down.
+fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
+    match key {
+        VirtualKeyCode::Tab => state.player.noclip = !state.player.noclip,
+        _ => {}
+    }
+}
+
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
     let down = inp.state == ElementState::Pressed;
     if let Some(key) = inp.virtual_keycode {
+        if down {
+            do_key_press(key, state);
+        }
+        // Log whether a key was pressed/released such that `do_keys_down()` knows if keys are down
         state.keys_down.insert(key, down);
     }
 }
@@ -287,7 +301,7 @@ fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
 }
 
 // Process down keys to move the player
-fn do_movement(client: &mut Client, dt: f32) {
+fn do_keys_down(client: &mut Client, dt: f32) {
     let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
     // Discard the y component to prevent the player from floating when they walk forward while
     // looking up. The vectors are normalized to keep the speed constant.
@@ -375,7 +389,7 @@ fn update_state(client: &mut Client, dt: f32) {
     if client.state.paused {
         do_paused(client);
     } else {
-        do_movement(client, dt);
+        do_keys_down(client, dt);
         do_sandfall(&mut client.state);
         client.state.sight_block = get_sight_block(&client.state);
     }
