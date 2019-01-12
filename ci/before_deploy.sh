@@ -19,11 +19,8 @@ main() {
 
     cross rustc --bin $CRATE_NAME --target $TARGET --release -- -C lto
 
-    # TODO: Remove debug ls
-    ls target/
-    ls target/$TARGET/
-    ls target/$TARGET/release/
-    cp target/$TARGET/release/sandvox $stage/
+    cp target/$TARGET/release/$CRATE_NAME $stage/ \
+        || cp target/$TARGET/release/$CRATE_NAME.exe $stage/
 
     cd $stage
     tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
