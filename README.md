@@ -33,6 +33,9 @@ The 3D voxel falling-sand game
   - [ ] Logo
   - [ ] Linux app (.desktop file, icon)
   - [ ] Linux AppImage
+  - [ ] DEB
+  - [ ] RPM
+  - [ ] Ubuntu PPA
   - [ ] AUR package
   - [ ] Windows executable icon
   - [ ] Mac app (not just a raw executable)
