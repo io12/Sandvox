@@ -101,6 +101,7 @@ struct SkyboxVertex {
     pos: [f32; 3],
 }
 
+const GAME_NAME: &str = "Sandvox";
 const VOX_L: usize = 120;
 const VOX_W: usize = 120;
 const VOX_H: usize = 120;
@@ -146,7 +147,9 @@ impl Client {
     // Create a window, initialize OpenGL, compile the GLSL shaders, and initialize a client struct
     fn init() -> Client {
         let win_size = (WIN_W, WIN_H).into();
-        let win = WindowBuilder::new().with_dimensions(win_size);
+        let win = WindowBuilder::new()
+            .with_dimensions(win_size)
+            .with_title(GAME_NAME);
         let ctx = ContextBuilder::new().with_depth_buffer(24);
         let evs = EventsLoop::new();
         let display = Display::new(win, ctx, &evs).unwrap();
