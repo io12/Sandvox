@@ -3,30 +3,25 @@
 set -ex
 
 main() {
-    local src=$(pwd) \
-          stage=
-
-    case $TRAVIS_OS_NAME in
-        linux)
-            stage=$(mktemp -d)
-            ;;
-        osx)
-            stage=$(mktemp -d -t tmp)
-            ;;
-    esac
-
     test -f Cargo.lock || cargo generate-lockfile
 
     cross rustc --bin $CRATE_NAME --target $TARGET --release -- -C lto
 
-    cp target/$TARGET/release/$CRATE_NAME $stage/ \
-        || cp target/$TARGET/release/$CRATE_NAME.exe $stage/
-
-    cd $stage
-    tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
-    cd $src
-
-    rm -rf $stage
+    case $TARGET in
+        x86_64-apple-darwin)
+            cp target/$TARGET/release/$CRATE_NAME $CRATE_NAME-macos
+        ;;
+        x86_64-unknown-linux-gnu)
+            cp target/$TARGET/release/$CRATE_NAME $CRATE_NAME-linux
+        ;;
+        x86_64-pc-windows-gnu)
+            cp target/$TARGET/release/$CRATE_NAME.exe $CRATE_NAME-windows.exe
+        ;;
+        *)
+            echo "error: Unknown target $TARGET"
+            exit 1
+        ;;
+    esac
 }
 
 main
