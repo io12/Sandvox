@@ -19,6 +19,10 @@ main() {
 
     cross rustc --bin $CRATE_NAME --target $TARGET --release -- -C lto
 
+    # TODO: Remove debug ls
+    ls target/
+    ls target/$TARGET/
+    ls target/$TARGET/release/
     cp target/$TARGET/release/sandvox $stage/
 
     cd $stage
