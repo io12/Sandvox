@@ -36,4 +36,5 @@ The 3D voxel falling-sand game
   - [ ] AUR package
   - [ ] Windows executable icon
   - [ ] Mac app (not just a raw executable)
+  - [ ] Website
   - [ ] Android app
