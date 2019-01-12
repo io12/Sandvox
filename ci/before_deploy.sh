@@ -17,7 +17,7 @@ main() {
 
     test -f Cargo.lock || cargo generate-lockfile
 
-    cargo build --release
+    cross rustc --bin $CRATE_NAME --target $TARGET --release -- -C lto
 
     cp target/$TARGET/release/sandvox $stage/
 
