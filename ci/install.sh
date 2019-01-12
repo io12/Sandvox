@@ -4,8 +4,10 @@ set -ex
 
 main() {
     if [ "$TRAVIS_OS_NAME" = linux ]; then
+        trust_target=x86_64-unknown-linux-musl
         sort="sort"
     else
+        trust_target=x86_64-apple-darwin
         sort=gsort  # for `sort --sort-version`, from brew's coreutils.
     fi
 
@@ -40,7 +42,7 @@ main() {
            --force \
            --git japaric/cross \
            --tag "$tag" \
-           --target "$TARGET"
+           --target "$trust_target"
 }
 
 main
