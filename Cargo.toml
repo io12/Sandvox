@@ -1,5 +1,6 @@
 [package]
 name = "sandvox"
+description = "The 3D voxel falling-sand game"
 version = "0.1.0"
 authors = ["Benjamin Levy <blevy@protonmail.com>"]
 
