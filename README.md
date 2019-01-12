@@ -11,7 +11,7 @@ The 3D voxel falling-sand game
   - [ ] Air control
   - [ ] Adjustable brush size
   - [ ] Debug HUD
-  - [ ] Choice of materials
+  - Choice of materials
     - [ ] Wall
     - [ ] Wood
     - [ ] Water
