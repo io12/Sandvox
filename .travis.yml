@@ -1,0 +1,65 @@
+# Based on the "trust" template v0.1.2
+# https://github.com/japaric/trust/tree/v0.1.2
+
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+env:
+  global:
+    - CRATE_NAME=sandvox
+
+matrix:
+  include:
+    # Linux
+    - env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # Windows
+    - env: TARGET=x86_64-pc-windows-gnu
+
+before_install:
+  - set -e
+  - rustup self update
+
+install:
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
+
+script:
+  - bash ci/script.sh
+
+after_script: set +e
+
+before_deploy:
+  - sh ci/before_deploy.sh
+
+deploy:
+  api_key:
+    secure: b1jyqas/cTqUNa4Z8t4eqdu2It+QS8jpnscjLZ/QwgHPiuRC6bRqCIDsVblYeYTAEAOijkjKMhq/Uo65VDFGgVRslV6vMoJhECBId/6D2qbML0IAQmOkogUTh6J7ohmc4KuSOyIKN4BeYj58LLHMwrMRmvX8XVegxJeocSK5cgI1qotcpwGm6C34kflKaNDCO6Rk8HkDXdQacRB1MOtow/qbrRE0k2PQ65KO0Maljzt9J/wGZO26cAVjz1wgYAsKLJ0IKnhn+mqBRpNKObYTU8G9beRts/MlcGf0RfB1eBcYNJpeIW2zautoXWWdcJ502w32NCQ4STGynpzsa5uGaPhQXxQy+OgRe00pnT8itkENN5A+YqsNdMGv5Fmd1hG6kQqf8vO1E2SdzsZPENmaY2IuttMMRqPRyDkepvcvcF3D3eQcuSIPA7vHfl6mdZPEQCgKC+c0335tsOEAJBYr1RDMTBtZof9gZnhW2glPES0EBxewlOjaa0nQEqFp8KdMlrB7bIfo69hkEloQF2qZUZRQ6N63AeFkZY5qRruab4ElOr4A+jk3ACi719UJtxwqIlHmWQHTG57IEzy7olbU1TPiDRWnJiykHMFzur6R/D/QwLT2BpMtO2czaw7fFtti/eq5Btl+pEMxq01oFw7l6NUGLMB3CyxYKkW0B5LThIw=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  email:
+    on_success: never
