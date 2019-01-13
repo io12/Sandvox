@@ -6,6 +6,7 @@ use client::{GameState, Player, VOX_H, VOX_L, VOX_W};
 use render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
+const PLAYER_RADIUS: f32 = 0.3; // Radius of the player hitbox (cylinder)
 const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
 
 // Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
@@ -66,9 +67,9 @@ fn player_is_standing(state: &GameState) -> bool {
 // Clip the player inside the bounds of the voxel grid. The y-axis is unclamped in the positive
 // direction, so the player can fly arbitrarily high.
 fn bounds_correct_player(player: &mut Player) {
-    player.pos.x = clamp(0.0, player.pos.x, VOX_L as f32);
+    player.pos.x = clamp(PLAYER_RADIUS, player.pos.x, VOX_L as f32 - PLAYER_RADIUS);
     player.pos.y = player.pos.y.max(EYE_HEIGHT);
-    player.pos.z = clamp(0.0, player.pos.z, VOX_H as f32);
+    player.pos.z = clamp(PLAYER_RADIUS, player.pos.z, VOX_H as f32 - PLAYER_RADIUS);
 }
 
 // Update player position and velocity
