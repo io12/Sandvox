@@ -232,7 +232,7 @@ pub fn get_sight_block(state: &GameState) -> Option<SightBlock> {
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
 fn make_wireframe_mesh(state: &GameState) -> Option<[WireframeVertex; 48]> {
-    let Point3 { x, y, z } = state.sight_block?.new_pos;
+    let Point3 { x, y, z } = state.sight_block?.pos;
     // Array of lines (not triangles)
     Some([
         // From -x

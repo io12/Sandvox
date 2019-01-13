@@ -19,9 +19,12 @@ fn boundary_at_pos(pos: Point3<f32>) -> bool {
 }
 
 // Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
-// bounds of the voxel grid
+// bounds of the voxel grid. Note that the boundary (one outside the voxel grid) is considered a
+// voxel.
 fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
-    if pos.x >= 0.0 && pos.y >= 0.0 && pos.z >= 0.0 {
+    if boundary_at_pos(pos) {
+        Some(true)
+    } else {
         Some(
             *state
                 .voxels
@@ -29,10 +32,6 @@ fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
                 .get(pos.y as usize)?
                 .get(pos.z as usize)?,
         )
-    } else if boundary_at_pos(pos) {
-        Some(true)
-    } else {
-        None
     }
 }
 
