@@ -55,7 +55,7 @@ impl SkyboxVertex {
 }
 
 const FOV: Deg<f32> = Deg(60.0);
-const BLOCK_SEL_DIST: usize = 200;
+const BLOCK_SEL_DIST: usize = 2000;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
 const CROSSHAIRS_SIZE: f32 = 15.0;

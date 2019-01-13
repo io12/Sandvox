@@ -5,9 +5,10 @@ use clamp::clamp;
 use client::{GameState, Player, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
-const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
-const PLAYER_RADIUS: f32 = 0.3; // Radius of the player hitbox (cylinder)
-const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
+const EYE_HEIGHT: f32 = 16.2; // Height of the player's eyes
+const FOREHEAD_SIZE: f32 = 2.0; // Vertical distance from the player's eyes to the top of the player
+const PLAYER_RADIUS: f32 = 3.0; // Radius of the player hitbox (cylinder)
+const ACCEL_GRAV: f32 = 100.0; // Acceleration due to gravity, in dm/s^2
 
 // Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
 fn boundary_at_pos(pos: Point3<f32>) -> bool {
@@ -63,15 +64,14 @@ fn player_is_standing(state: &GameState) -> bool {
     voxel_at(state, surface_pos)
 }
 
-// Clip the player inside the bounds of the voxel grid. The y-axis is unclamped in the positive
-// direction, so the player can fly arbitrarily high.
+// Clip the player inside the bounds of the voxel grid
 fn bounds_correct_player(player: &mut Player) {
     player.pos.x = clamp(
         PLAYER_RADIUS,
         player.pos.x,
         VOX_MAX_X as f32 - PLAYER_RADIUS,
     );
-    player.pos.y = player.pos.y.max(EYE_HEIGHT);
+    player.pos.y = clamp(EYE_HEIGHT, player.pos.y, VOX_MAX_Y as f32 - FOREHEAD_SIZE);
     player.pos.z = clamp(
         PLAYER_RADIUS,
         player.pos.z,

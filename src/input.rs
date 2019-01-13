@@ -15,8 +15,8 @@ use client::{Client, GameState, SightBlock};
 use physics;
 
 const TURN_SPEED: f32 = 0.01;
-const FLY_SPEED: f32 = 30.0; // In voxels per second
-const WALK_SPEED: f32 = 5.0; // In voxels per second
+const FLY_SPEED: f32 = 300.0; // In dm/s
+const WALK_SPEED: f32 = 50.0; // In dm/s
 
 fn handle_mouse_input(state: &mut GameState, mouse_state: ElementState, btn: MouseButton) {
     let down = mouse_state == ElementState::Pressed;
