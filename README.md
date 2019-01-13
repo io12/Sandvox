@@ -9,6 +9,7 @@ The 3D voxel falling-sand game
 - Client
   - [ ] Proper player hitbox
   - [ ] Air control
+  - [ ] Bobbing
   - [ ] Player friction
   - [ ] Adjustable brush size
   - [ ] Debug HUD
