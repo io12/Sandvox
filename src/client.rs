@@ -21,7 +21,7 @@ pub struct Graphics {
 }
 
 pub struct Player {
-    pub pos: Point3<f32>,
+    pub pos: Point3<f32>, // Position of the player's eyes
     pub angle: Vector2<f32>,
     pub velocity: Vector3<f32>,
     pub flying: bool,
@@ -53,6 +53,7 @@ pub struct Client {
     pub state: GameState,
 }
 
+// TODO: Fix the naming/usage inaccuracy
 pub const VOX_L: usize = 120;
 pub const VOX_W: usize = 120;
 pub const VOX_H: usize = 120;

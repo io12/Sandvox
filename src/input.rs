@@ -11,7 +11,8 @@ use clamp::clamp;
 use std::f32::consts::PI;
 
 use client;
-use client::{Client, GameState, Player, SightBlock};
+use client::{Client, GameState, SightBlock};
+use physics;
 use render;
 
 const TURN_SPEED: f32 = 0.01;
@@ -93,10 +94,6 @@ pub fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
     *state.mouse_btns_down.get(&btn).unwrap_or(&false)
 }
 
-fn is_falling(player: &Player) -> bool {
-    !player.flying && !is_standing(player)
-}
-
 // Process down keys to change the game state
 pub fn do_keys_down(client: &mut Client) {
     let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
@@ -111,7 +108,7 @@ pub fn do_keys_down(client: &mut Client) {
     };
 
     // TODO: Make this clearer
-    if !is_falling(&client.state.player) {
+    if !physics::in_freefall(&client.state.player) {
         client.state.player.velocity = Vector3::new(0.0, 0.0, 0.0);
         // Move forward
         if key_down(&client.state, VirtualKeyCode::W) {
@@ -157,11 +154,6 @@ pub fn do_keys_down(client: &mut Client) {
             render::put_voxel(&mut client.state, new_pos, true);
         }
     }
-}
-
-// TODO: Not a good function
-fn is_standing(player: &Player) -> bool {
-    player.pos.y <= 0.0
 }
 
 // Calculate the forward vector based on the player angle
