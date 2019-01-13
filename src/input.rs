@@ -39,7 +39,7 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
 // key is currently down.
 fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
     match key {
-        VirtualKeyCode::Tab => state.player.noclip = !state.player.noclip,
+        VirtualKeyCode::Tab => state.player.flying = !state.player.flying,
         _ => {}
     }
 }
@@ -94,7 +94,7 @@ pub fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
 }
 
 fn is_falling(player: &Player) -> bool {
-    !player.noclip && !is_standing(player)
+    !player.flying && !is_standing(player)
 }
 
 // Process down keys to change the game state
@@ -104,7 +104,7 @@ pub fn do_keys_down(client: &mut Client) {
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
     let right = right.normalize();
-    let move_speed = if client.state.player.noclip {
+    let move_speed = if client.state.player.flying {
         FLY_SPEED
     } else {
         WALK_SPEED
@@ -134,7 +134,7 @@ pub fn do_keys_down(client: &mut Client) {
             client.state.player.velocity.y = move_speed
         }
         // Move down
-        if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.noclip {
+        if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.flying {
             client.state.player.velocity.y = -move_speed
         }
     }

@@ -5,6 +5,10 @@ const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
 // Update player position and velocity
 pub fn do_player_physics(player: &mut Player, dt: f32) {
     player.pos += player.velocity * dt;
+    // Prevent clipping through the floor when falling quickly
+    if player.pos.y < 0.0 {
+        player.pos.y = 0.0;
+    }
     player.velocity.y -= ACCEL_GRAV * dt;
 }
 

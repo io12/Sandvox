@@ -24,7 +24,7 @@ pub struct Player {
     pub pos: Point3<f32>,
     pub angle: Vector2<f32>,
     pub velocity: Vector3<f32>,
-    pub noclip: bool,
+    pub flying: bool,
 }
 
 // A block directly in the player's line of sight
@@ -112,7 +112,7 @@ impl Client {
             pos: INIT_POS,
             angle: Vector2::new(0.0, 0.0),
             velocity: Vector3::new(0.0, 0.0, 0.0),
-            noclip: true,
+            flying: true,
         };
         let state = GameState {
             running: true,
