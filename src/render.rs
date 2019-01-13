@@ -13,7 +13,7 @@ use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, V
 
 use image::RgbaImage;
 
-use client::{GameState, Graphics, Player, SightBlock, VOX_H, VOX_L, VOX_W};
+use client::{GameState, Graphics, Player, SightBlock, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use physics;
 
 pub type VoxInd = i8;
@@ -155,9 +155,9 @@ fn make_voxels_mesh(state: &GameState) -> Vec<BasicVertexI> {
 
     let mut mesh = Vec::new();
     // Iterate through all the voxels, creating a cube mesh for each
-    for x in 0..VOX_L {
-        for y in 0..VOX_W {
-            for z in 0..VOX_H {
+    for x in 0..VOX_MAX_X {
+        for y in 0..VOX_MAX_Y {
+            for z in 0..VOX_MAX_Z {
                 if state.voxels[x][y][z] {
                     for v in cube_vertices.iter() {
                         mesh.push(BasicVertexI::new(

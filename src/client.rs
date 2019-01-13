@@ -39,7 +39,7 @@ pub struct GameState {
     pub frame: u32,
     pub player: Player,
     pub sight_block: Option<SightBlock>,
-    pub voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
+    pub voxels: Box<[[[bool; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>,
     pub voxels_mesh: Vec<BasicVertexI>,
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
@@ -51,10 +51,9 @@ pub struct Client {
     pub state: GameState,
 }
 
-// TODO: Fix the naming/usage inaccuracy
-pub const VOX_L: usize = 120;
-pub const VOX_W: usize = 120;
-pub const VOX_H: usize = 120;
+pub const VOX_MAX_X: usize = 120;
+pub const VOX_MAX_Y: usize = 120;
+pub const VOX_MAX_Z: usize = 120;
 
 const GAME_NAME: &str = "Sandvox";
 const WIN_W: u32 = 800;
@@ -123,11 +122,11 @@ impl Client {
 
 // Create an initial diagonal stripe test world
 // TODO: Remove this
-fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
-    let mut voxels = Box::new([[[false; VOX_H]; VOX_W]; VOX_L]);
-    for x in 0..VOX_L {
-        for y in 0..VOX_W {
-            for z in 0..VOX_H {
+fn make_test_world() -> Box<[[[bool; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]> {
+    let mut voxels = Box::new([[[false; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
+    for x in 0..VOX_MAX_X {
+        for y in 0..VOX_MAX_Y {
+            for z in 0..VOX_MAX_Z {
                 if x == y && y == z {
                     voxels[x][y][z] = true;
                 }

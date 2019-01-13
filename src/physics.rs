@@ -2,7 +2,7 @@ use cgmath::{Point3, Vector3};
 
 use clamp::clamp;
 
-use client::{GameState, Player, VOX_H, VOX_L, VOX_W};
+use client::{GameState, Player, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
@@ -14,9 +14,9 @@ fn boundary_at_pos(pos: Point3<f32>) -> bool {
     pos.x as i32 == -1
         || pos.y as i32 == -1
         || pos.z as i32 == -1
-        || pos.x as usize == VOX_L
-        || pos.y as usize == VOX_W
-        || pos.z as usize == VOX_H
+        || pos.x as usize == VOX_MAX_X
+        || pos.y as usize == VOX_MAX_Y
+        || pos.z as usize == VOX_MAX_Z
 }
 
 // Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
@@ -66,9 +66,17 @@ fn player_is_standing(state: &GameState) -> bool {
 // Clip the player inside the bounds of the voxel grid. The y-axis is unclamped in the positive
 // direction, so the player can fly arbitrarily high.
 fn bounds_correct_player(player: &mut Player) {
-    player.pos.x = clamp(PLAYER_RADIUS, player.pos.x, VOX_L as f32 - PLAYER_RADIUS);
+    player.pos.x = clamp(
+        PLAYER_RADIUS,
+        player.pos.x,
+        VOX_MAX_X as f32 - PLAYER_RADIUS,
+    );
     player.pos.y = player.pos.y.max(EYE_HEIGHT);
-    player.pos.z = clamp(PLAYER_RADIUS, player.pos.z, VOX_H as f32 - PLAYER_RADIUS);
+    player.pos.z = clamp(
+        PLAYER_RADIUS,
+        player.pos.z,
+        VOX_MAX_Z as f32 - PLAYER_RADIUS,
+    );
 }
 
 // Update player position and velocity
@@ -84,9 +92,9 @@ pub fn do_player_physics(player: &mut Player, dt: f32) {
 pub fn do_sandfall(state: &mut GameState) {
     if state.frame % 10 == 0 {
         // TODO: Find a better way to iterate over voxels
-        for x in 0..VOX_L {
-            for y in 0..VOX_W {
-                for z in 0..VOX_H {
+        for x in 0..VOX_MAX_X {
+            for y in 0..VOX_MAX_Y {
+                for z in 0..VOX_MAX_Z {
                     // TODO: Make this less boilerplate
                     if state.voxels[x][y][z] && y > 0 && !state.voxels[x][y - 1][z] {
                         state.voxels[x][y][z] = false;
