@@ -68,6 +68,7 @@ const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
 const CROSSHAIRS_SIZE: f32 = 15.0;
+const EYE_HEIGHT: f32 = 1.62;
 
 // Calculate the forward vector based on the player angle
 fn compute_forward_vector(angle: &Vector2<f32>) -> Vector3<f32> {
@@ -108,13 +109,19 @@ fn get_aspect_ratio(gfx: &Graphics) -> f32 {
     (width / height) as f32
 }
 
+// Get the position of the player's eyes
+fn get_eye_pos(player: &Player) -> Point3<f32> {
+    player.pos + Vector3::new(0.0, EYE_HEIGHT, 0.0)
+}
+
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
 fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = compute_dir_vectors(&player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
-    let view = Matrix4::look_at_dir(player.pos, forward, up);
+    let eye = get_eye_pos(player);
+    let view = Matrix4::look_at_dir(eye, forward, up);
     proj * view
 }
 
