@@ -14,6 +14,7 @@ use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, V
 use image::RgbaImage;
 
 use client::{GameState, Graphics, Player, SightBlock, VOX_H, VOX_L, VOX_W};
+use physics;
 
 pub type VoxInd = i8;
 
@@ -183,51 +184,6 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
     mesh
 }
 
-// Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
-fn boundary_at_pos(pos: Point3<f32>) -> bool {
-    pos.x as i32 == -1
-        || pos.y as i32 == -1
-        || pos.z as i32 == -1
-        || pos.x as usize == VOX_L
-        || pos.y as usize == VOX_W
-        || pos.z as usize == VOX_H
-}
-
-// Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
-// bounds of the voxel grid
-fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
-    if pos.x >= 0.0 && pos.y >= 0.0 && pos.z >= 0.0 {
-        Some(
-            *state
-                .voxels
-                .get(pos.x as usize)?
-                .get(pos.y as usize)?
-                .get(pos.z as usize)?,
-        )
-    } else if boundary_at_pos(pos) {
-        Some(true)
-    } else {
-        None
-    }
-}
-
-// Determine if the is a voxel at `pos`, returning `false` when the position is out of bounds
-fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
-    voxel_at_opt(state, pos).unwrap_or(false)
-}
-
-// Set a voxel at a coordinate, returning `None` if out-of-bounds
-// TODO: Move this to `client.rs`
-pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, val: bool) -> Option<()> {
-    *state
-        .voxels
-        .get_mut(pos.x as usize)?
-        .get_mut(pos.y as usize)?
-        .get_mut(pos.z as usize)? = val;
-    state.dirty = true;
-    Some(())
-}
-
 // Get the block in the player's line of sight. This is the box that a wireframe is drawn around
 // and is modified by left/right clicks. This function returns `None` if no voxel is in the
 // player's line of sight.
@@ -238,7 +194,7 @@ pub fn get_sight_block(state: &GameState) -> Option<SightBlock> {
     for _ in 0..BLOCK_SEL_DIST {
         let prev_pos = pos;
         pos += forward * RAYCAST_STEP;
-        if voxel_at(state, pos) {
+        if physics::voxel_at(state, pos) {
             // Now that the voxel is known, compute the face being observed. Because voxel_at()
             // returned true this iteration, but not last time, comparing integer coords can
             // determine the face.

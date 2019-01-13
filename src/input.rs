@@ -13,7 +13,6 @@ use std::f32::consts::PI;
 use client;
 use client::{Client, GameState, SightBlock};
 use physics;
-use render;
 
 const TURN_SPEED: f32 = 0.01;
 const FLY_SPEED: f32 = 30.0; // In voxels per second
@@ -108,7 +107,7 @@ pub fn do_keys_down(client: &mut Client) {
     };
 
     // TODO: Make this clearer
-    if !physics::in_freefall(&client.state.player) {
+    if !physics::player_in_freefall(&client.state) {
         client.state.player.velocity = Vector3::new(0.0, 0.0, 0.0);
         // Move forward
         if key_down(&client.state, VirtualKeyCode::W) {
@@ -144,14 +143,14 @@ pub fn do_keys_down(client: &mut Client) {
     // Destroy sand
     if mouse_btn_down(&client.state, MouseButton::Left) {
         if let Some(SightBlock { pos, .. }) = client.state.sight_block {
-            render::put_voxel(&mut client.state, pos, false);
+            physics::put_voxel(&mut client.state, pos, false);
         }
     }
 
     // Create sand
     if mouse_btn_down(&client.state, MouseButton::Right) {
         if let Some(SightBlock { new_pos, .. }) = client.state.sight_block {
-            render::put_voxel(&mut client.state, new_pos, true);
+            physics::put_voxel(&mut client.state, new_pos, true);
         }
     }
 }
