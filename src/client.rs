@@ -27,7 +27,6 @@ pub struct Player {
 }
 
 // A block directly in the player's line of sight
-// TODO: This isn't needed because `pos` is unused now
 #[derive(Copy, Clone)]
 pub struct SightBlock {
     pub pos: Point3<VoxInd>,

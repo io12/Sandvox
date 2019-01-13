@@ -42,7 +42,6 @@ pub fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
 }
 
 // Set a voxel at a coordinate, returning `None` if out-of-bounds
-// TODO: Move this to `client.rs`
 pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, val: bool) -> Option<()> {
     *state
         .voxels
