@@ -7,7 +7,7 @@ use cgmath::{Point3, Vector2, Vector3};
 
 use std::collections::HashMap;
 
-use render::{VoxInd, VoxelVertex};
+use render::{BasicVertexI, VoxInd};
 use {input, physics, render};
 
 pub struct Graphics {
@@ -15,8 +15,7 @@ pub struct Graphics {
     pub evs: EventsLoop,
     pub cubemap: SrgbCubemap,
     // GLSL shader programs
-    pub voxel_prog: Program,
-    pub line_prog: Program,
+    pub basic_prog: Program,
     pub sky_prog: Program,
 }
 
@@ -42,7 +41,7 @@ pub struct GameState {
     pub player: Player,
     pub sight_block: Option<SightBlock>,
     pub voxels: Box<[[[bool; VOX_H]; VOX_W]; VOX_L]>,
-    pub voxels_mesh: Vec<VoxelVertex>,
+    pub voxels_mesh: Vec<BasicVertexI>,
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
     pub mouse_btns_down: HashMap<MouseButton, bool>,
@@ -79,17 +78,10 @@ impl Client {
         let display = Display::new(win, ctx, &evs).unwrap();
         let cubemap = render::make_skybox_cubemap(&display);
         // Compile program from GLSL shaders
-        let voxel_prog = Program::from_source(
+        let basic_prog = Program::from_source(
             &display,
-            include_str!("shaders/voxel_vert.glsl"),
-            include_str!("shaders/voxel_frag.glsl"),
-            None,
-        )
-        .unwrap();
-        let line_prog = Program::from_source(
-            &display,
-            include_str!("shaders/line_vert.glsl"),
-            include_str!("shaders/line_frag.glsl"),
+            include_str!("shaders/basic_vert.glsl"),
+            include_str!("shaders/basic_frag.glsl"),
             None,
         )
         .unwrap();
@@ -105,8 +97,7 @@ impl Client {
             display,
             evs,
             cubemap,
-            voxel_prog,
-            line_prog,
+            basic_prog,
             sky_prog,
         };
         let player = Player {
@@ -148,7 +139,6 @@ fn make_test_world() -> Box<[[[bool; VOX_H]; VOX_W]; VOX_L]> {
 }
 
 // Pause/unpause the game
-// TODO: Dim screen on pause
 pub fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
     let grab = !paused;
     display.gl_window().window().grab_cursor(grab).unwrap();

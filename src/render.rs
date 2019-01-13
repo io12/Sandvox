@@ -3,7 +3,7 @@ use glium::index::{NoIndices, PrimitiveType};
 use glium::texture::srgb_cubemap::SrgbCubemap;
 use glium::texture::{CubeLayer, RawImage2d};
 use glium::uniforms::MagnifySamplerFilter;
-use glium::{Depth, Display, DrawParameters, Frame, Surface, Texture2d, VertexBuffer};
+use glium::{Blend, Depth, Display, DrawParameters, Frame, Surface, Texture2d, VertexBuffer};
 
 use glium::glutin::dpi::LogicalSize;
 
@@ -18,23 +18,18 @@ use physics;
 
 pub type VoxInd = i8;
 
-implement_vertex!(VoxelVertex, pos, color);
+implement_vertex!(BasicVertexI, pos, color);
 #[derive(Clone, Copy)]
-pub struct VoxelVertex {
+pub struct BasicVertexI {
     pos: [VoxInd; 3],
-    color: [VoxInd; 3],
+    color: [VoxInd; 4],
 }
 
-implement_vertex!(WireframeVertex, pos);
+implement_vertex!(BasicVertexF, pos, color);
 #[derive(Clone, Copy)]
-struct WireframeVertex {
-    pos: [VoxInd; 3],
-}
-
-implement_vertex!(CrosshairsVertex, pos);
-#[derive(Clone, Copy)]
-struct CrosshairsVertex {
+struct BasicVertexF {
     pos: [f32; 3],
+    color: [f32; 4],
 }
 
 implement_vertex!(SkyboxVertex, pos);
@@ -43,19 +38,14 @@ struct SkyboxVertex {
     pos: [f32; 3],
 }
 
-impl VoxelVertex {
-    fn new(pos: [VoxInd; 3], color: [VoxInd; 3]) -> Self {
+impl BasicVertexI {
+    fn new(pos: [VoxInd; 3], color: [VoxInd; 4]) -> Self {
         Self { pos, color }
     }
 }
-impl WireframeVertex {
-    fn new(x: VoxInd, y: VoxInd, z: VoxInd) -> Self {
-        Self { pos: [x, y, z] }
-    }
-}
-impl CrosshairsVertex {
-    fn new(x: f32, y: f32) -> Self {
-        Self { pos: [x, y, 0.0] }
+impl BasicVertexF {
+    fn new(pos: [f32; 3], color: [f32; 4]) -> Self {
+        Self { pos, color }
     }
 }
 impl SkyboxVertex {
@@ -69,6 +59,8 @@ const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
 const CROSSHAIRS_SIZE: f32 = 15.0;
+const PAUSE_SCREEN_DIM: f32 = 0.9; // The amount of screen dimming when paused
+                                   // 1.0 is full black, 0.0 is no dimming
 
 // Calculate the forward vector based on the player angle
 fn compute_forward_vector(angle: &Vector2<f32>) -> Vector3<f32> {
@@ -120,45 +112,45 @@ fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 }
 
 // Make a mesh of the voxel world
-fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
+fn make_voxels_mesh(state: &GameState) -> Vec<BasicVertexI> {
     // TODO: Make this mesh a global
     let cube_vertices = [
-        VoxelVertex::new([0, 0, 0], [0, 0, 1]),
-        VoxelVertex::new([0, 0, 1], [0, 1, 0]),
-        VoxelVertex::new([0, 1, 1], [1, 0, 0]),
-        VoxelVertex::new([1, 1, 0], [1, 0, 0]),
-        VoxelVertex::new([0, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([0, 1, 0], [0, 0, 1]),
-        VoxelVertex::new([1, 0, 1], [0, 1, 0]),
-        VoxelVertex::new([0, 0, 0], [1, 0, 0]),
-        VoxelVertex::new([1, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 0], [0, 0, 1]),
-        VoxelVertex::new([1, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([0, 0, 0], [1, 0, 0]),
-        VoxelVertex::new([0, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([0, 1, 1], [0, 0, 1]),
-        VoxelVertex::new([0, 1, 0], [0, 1, 0]),
-        VoxelVertex::new([1, 0, 1], [1, 0, 0]),
-        VoxelVertex::new([0, 0, 1], [0, 1, 0]),
-        VoxelVertex::new([0, 0, 0], [0, 0, 1]),
-        VoxelVertex::new([0, 1, 1], [0, 1, 0]),
-        VoxelVertex::new([0, 0, 1], [1, 0, 0]),
-        VoxelVertex::new([1, 0, 1], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 1], [0, 0, 1]),
-        VoxelVertex::new([1, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 0], [1, 0, 0]),
-        VoxelVertex::new([1, 0, 0], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 1], [0, 0, 1]),
-        VoxelVertex::new([1, 0, 1], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 1], [1, 0, 0]),
-        VoxelVertex::new([1, 1, 0], [0, 1, 0]),
-        VoxelVertex::new([0, 1, 0], [0, 0, 1]),
-        VoxelVertex::new([1, 1, 1], [0, 1, 0]),
-        VoxelVertex::new([0, 1, 0], [1, 0, 0]),
-        VoxelVertex::new([0, 1, 1], [0, 1, 0]),
-        VoxelVertex::new([1, 1, 1], [0, 0, 1]),
-        VoxelVertex::new([0, 1, 1], [0, 1, 0]),
-        VoxelVertex::new([1, 0, 1], [1, 0, 0]),
+        BasicVertexI::new([0, 0, 0], [0, 0, 1, 1]),
+        BasicVertexI::new([0, 0, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 1, 1], [1, 0, 0, 1]),
+        BasicVertexI::new([1, 1, 0], [1, 0, 0, 1]),
+        BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 1, 0], [0, 0, 1, 1]),
+        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
+        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 0], [0, 0, 1, 1]),
+        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
+        BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 1, 1], [0, 0, 1, 1]),
+        BasicVertexI::new([0, 1, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 0, 1], [1, 0, 0, 1]),
+        BasicVertexI::new([0, 0, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 0, 0], [0, 0, 1, 1]),
+        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 0, 1], [1, 0, 0, 1]),
+        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
+        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 0], [1, 0, 0, 1]),
+        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
+        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 1], [1, 0, 0, 1]),
+        BasicVertexI::new([1, 1, 0], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 1, 0], [0, 0, 1, 1]),
+        BasicVertexI::new([1, 1, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([0, 1, 0], [1, 0, 0, 1]),
+        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
+        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
+        BasicVertexI::new([1, 0, 1], [1, 0, 0, 1]),
     ];
 
     let mut mesh = Vec::new();
@@ -168,7 +160,7 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
             for z in 0..VOX_H {
                 if state.voxels[x][y][z] {
                     for v in cube_vertices.iter() {
-                        mesh.push(VoxelVertex::new(
+                        mesh.push(BasicVertexI::new(
                             [
                                 v.pos[0] + x as VoxInd,
                                 v.pos[1] + y as VoxInd,
@@ -231,64 +223,65 @@ pub fn get_sight_block(state: &GameState) -> Option<SightBlock> {
 
 // Create a line wireframe mesh for the voxel in the player's line of sight. The return type is an
 // `Option` because there might not be a voxel in the line of sight.
-fn make_wireframe_mesh(state: &GameState) -> Option<[WireframeVertex; 48]> {
+fn make_wireframe_mesh(state: &GameState) -> Option<[BasicVertexI; 48]> {
     let Point3 { x, y, z } = state.sight_block?.pos;
+    let color = [1, 1, 1, 1];
     // Array of lines (not triangles)
     Some([
         // From -x
-        WireframeVertex::new(x, y, z),
-        WireframeVertex::new(x, y + 1, z),
-        WireframeVertex::new(x, y + 1, z),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y, z + 1),
-        WireframeVertex::new(x, y, z + 1),
-        WireframeVertex::new(x, y, z),
+        BasicVertexI::new([x, y, z], color),
+        BasicVertexI::new([x, y + 1, z], color),
+        BasicVertexI::new([x, y + 1, z], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y, z + 1], color),
+        BasicVertexI::new([x, y, z + 1], color),
+        BasicVertexI::new([x, y, z], color),
         // From +x
-        WireframeVertex::new(x + 1, y, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x + 1, y, z),
+        BasicVertexI::new([x + 1, y, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x + 1, y, z], color),
         // From -y
-        WireframeVertex::new(x, y, z),
-        WireframeVertex::new(x + 1, y, z),
-        WireframeVertex::new(x + 1, y, z),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x, y, z + 1),
-        WireframeVertex::new(x, y, z + 1),
-        WireframeVertex::new(x, y, z),
+        BasicVertexI::new([x, y, z], color),
+        BasicVertexI::new([x + 1, y, z], color),
+        BasicVertexI::new([x + 1, y, z], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x, y, z + 1], color),
+        BasicVertexI::new([x, y, z + 1], color),
+        BasicVertexI::new([x, y, z], color),
         // From +y
-        WireframeVertex::new(x, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z),
+        BasicVertexI::new([x, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z], color),
         // From -z
-        WireframeVertex::new(x, y, z),
-        WireframeVertex::new(x + 1, y, z),
-        WireframeVertex::new(x + 1, y, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x + 1, y + 1, z),
-        WireframeVertex::new(x, y + 1, z),
-        WireframeVertex::new(x, y + 1, z),
-        WireframeVertex::new(x, y, z),
+        BasicVertexI::new([x, y, z], color),
+        BasicVertexI::new([x + 1, y, z], color),
+        BasicVertexI::new([x + 1, y, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x + 1, y + 1, z], color),
+        BasicVertexI::new([x, y + 1, z], color),
+        BasicVertexI::new([x, y + 1, z], color),
+        BasicVertexI::new([x, y, z], color),
         // From +z
-        WireframeVertex::new(x, y, z + 1),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x + 1, y, z + 1),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x + 1, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y + 1, z + 1),
-        WireframeVertex::new(x, y, z + 1),
+        BasicVertexI::new([x, y, z + 1], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x + 1, y, z + 1], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x + 1, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y + 1, z + 1], color),
+        BasicVertexI::new([x, y, z + 1], color),
     ])
 }
 
@@ -325,7 +318,7 @@ fn render_voxels(
         ..Default::default()
     };
     target
-        .draw(&vbuf, &ibuf, &gfx.voxel_prog, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.basic_prog, &uniforms, &params)
         .unwrap();
 }
 
@@ -344,19 +337,20 @@ fn render_wireframe(gfx: &Graphics, state: &GameState, matrix: Matrix4<f32>, tar
             ..Default::default()
         };
         target
-            .draw(&vbuf, &ibuf, &gfx.line_prog, &uniforms, &params)
+            .draw(&vbuf, &ibuf, &gfx.basic_prog, &uniforms, &params)
             .unwrap();
     }
 }
 
 // Make a crosshairs mesh based on the window dimenions
-fn make_crosshairs_mesh() -> [CrosshairsVertex; 4] {
+fn make_crosshairs_mesh() -> [BasicVertexF; 4] {
     let sz = CROSSHAIRS_SIZE;
+    let color = [1.0, 1.0, 1.0, 1.0];
     [
-        CrosshairsVertex::new(-sz, 0.0),
-        CrosshairsVertex::new(sz, 0.0),
-        CrosshairsVertex::new(0.0, -sz),
-        CrosshairsVertex::new(0.0, sz),
+        BasicVertexF::new([-sz, 0.0, 0.0], color),
+        BasicVertexF::new([sz, 0.0, 0.0], color),
+        BasicVertexF::new([0.0, -sz, 0.0], color),
+        BasicVertexF::new([0.0, sz, 0.0], color),
     ]
 }
 
@@ -382,7 +376,7 @@ fn render_crosshairs(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
         ..Default::default()
     };
     target
-        .draw(&vbuf, &ibuf, &gfx.line_prog, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.basic_prog, &uniforms, &params)
         .unwrap();
 }
 
@@ -516,6 +510,39 @@ fn render_skybox(gfx: &Graphics, matrix: Matrix4<f32>, target: &mut Frame) {
         .unwrap();
 }
 
+// Create a translucent black rectangle to dim the screen
+fn make_screen_dimmer_mesh() -> [BasicVertexF; 6] {
+    let color = [0.0, 0.0, 0.0, PAUSE_SCREEN_DIM];
+    let sz = 1.0;
+    [
+        BasicVertexF::new([-sz, -sz, 0.0], color),
+        BasicVertexF::new([-sz, sz, 0.0], color),
+        BasicVertexF::new([sz, -sz, 0.0], color),
+        BasicVertexF::new([sz, -sz, 0.0], color),
+        BasicVertexF::new([-sz, sz, 0.0], color),
+        BasicVertexF::new([sz, sz, 0.0], color),
+    ]
+}
+
+// Dim the screen by rendering a translucent black rectangle
+fn render_screen_dimmer(gfx: &Graphics, target: &mut Frame) {
+    let mesh = make_screen_dimmer_mesh();
+    let vbuf = VertexBuffer::new(&gfx.display, &mesh).unwrap();
+    // Do not use an index buffer
+    let ibuf = NoIndices(PrimitiveType::TrianglesList);
+    let matrix: Matrix4<f32> = Matrix4::identity();
+    let uniforms = uniform! {
+        matrix: array4x4(matrix),
+    };
+    let params = DrawParameters {
+        blend: Blend::alpha_blending(),
+        ..Default::default()
+    };
+    target
+        .draw(&vbuf, &ibuf, &gfx.basic_prog, &uniforms, &params)
+        .unwrap();
+}
+
 // Create meshes for the game objects and render them with OpenGL
 pub fn render(gfx: &mut Graphics, state: &mut GameState) {
     let vox_matrix = compute_voxel_matrix(&state.player, gfx);
@@ -531,6 +558,9 @@ pub fn render(gfx: &mut Graphics, state: &mut GameState) {
     render_voxels(gfx, state, vox_matrix, &mut target);
     render_wireframe(gfx, state, vox_matrix, &mut target);
     render_crosshairs(gfx, matrix_2d, &mut target);
+    if state.paused {
+        render_screen_dimmer(gfx, &mut target);
+    }
 
     // Swap buffers to finalize rendering
     target.finish().unwrap();
