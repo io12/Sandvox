@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime};
 
 mod client;
 mod input;
+mod physics;
 mod render;
 
 use client::Client;

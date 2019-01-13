@@ -7,9 +7,8 @@ use cgmath::{Point3, Vector2, Vector3};
 
 use std::collections::HashMap;
 
-use input;
-use render;
 use render::{VoxInd, VoxelVertex};
+use {input, physics, render};
 
 pub struct Graphics {
     pub display: Display,
@@ -66,7 +65,6 @@ const INIT_POS: Point3<f32> = Point3 {
     y: 1.5, // TODO: Each voxel is 1 cm and the camera is 1.5 m above ground
     z: 0.0,
 };
-const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity
 
 impl Client {
     // Create a window, initialize OpenGL, compile the GLSL shaders, and initialize a client struct
@@ -157,32 +155,6 @@ pub fn set_pause(state: &mut GameState, display: &Display, paused: bool) {
     state.paused = paused;
 }
 
-// TODO: Move physics functions into `physics.rs`
-fn do_player_physics(player: &mut Player, dt: f32) {
-    player.pos += player.velocity * dt;
-    player.velocity.y -= ACCEL_GRAV * dt;
-}
-
-// Propagate the voxels downwards (gravity)
-// TODO: Somehow use `dt` here
-fn do_sandfall(state: &mut GameState) {
-    if state.frame % 10 == 0 {
-        // TODO: Find a better way to iterate over voxels
-        for x in 0..VOX_L {
-            for y in 0..VOX_W {
-                for z in 0..VOX_H {
-                    // TODO: Make this less boilerplate
-                    if state.voxels[x][y][z] && y > 0 && !state.voxels[x][y - 1][z] {
-                        state.voxels[x][y][z] = false;
-                        state.voxels[x][y - 1][z] = true;
-                        state.dirty = true;
-                    }
-                }
-            }
-        }
-    }
-}
-
 // Handle state updates when paused
 fn do_paused(client: &mut Client) {
     // Unpause
@@ -198,8 +170,8 @@ pub fn update(client: &mut Client, dt: f32) {
         do_paused(client);
     } else {
         input::do_keys_down(client);
-        do_player_physics(&mut client.state.player, dt);
-        do_sandfall(&mut client.state);
+        physics::do_player_physics(&mut client.state.player, dt);
+        physics::do_sandfall(&mut client.state);
         client.state.sight_block = render::get_sight_block(&client.state);
     }
 }
