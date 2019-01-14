@@ -7,7 +7,7 @@ use cgmath::{Point3, Vector2, Vector3};
 
 use std::collections::HashMap;
 
-use render::{BasicVertexI, VoxInd};
+use render::{VoxInd, VoxelVertex};
 use {input, physics, render};
 
 pub struct Graphics {
@@ -17,6 +17,7 @@ pub struct Graphics {
     // GLSL shader programs
     pub basic_prog: Program,
     pub sky_prog: Program,
+    pub voxel_prog: Program,
 }
 
 pub struct Player {
@@ -33,14 +34,21 @@ pub struct SightBlock {
     pub new_pos: Point3<VoxInd>, // Position of new block created from right-clicking
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum VoxelType {
+    Air,
+    Sand,
+    Boundary,
+}
+
 pub struct GameState {
     pub running: bool,
     pub paused: bool,
     pub frame: u32,
     pub player: Player,
     pub sight_block: Option<SightBlock>,
-    pub voxels: Box<[[[bool; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>,
-    pub voxels_mesh: Vec<BasicVertexI>,
+    pub voxels: Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>,
+    pub voxels_mesh: Vec<VoxelVertex>,
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
     pub mouse_btns_down: HashMap<MouseButton, bool>,
@@ -90,6 +98,13 @@ impl Client {
             None,
         )
         .unwrap();
+        let voxel_prog = Program::from_source(
+            &display,
+            include_str!("shaders/voxel_vert.glsl"),
+            include_str!("shaders/voxel_frag.glsl"),
+            None,
+        )
+        .unwrap();
 
         let gfx = Graphics {
             display,
@@ -97,6 +112,7 @@ impl Client {
             cubemap,
             basic_prog,
             sky_prog,
+            voxel_prog,
         };
         let player = Player {
             pos: INIT_POS,
@@ -122,13 +138,13 @@ impl Client {
 
 // Create an initial diagonal stripe test world
 // TODO: Remove this
-fn make_test_world() -> Box<[[[bool; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]> {
-    let mut voxels = Box::new([[[false; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
+fn make_test_world() -> Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]> {
+    let mut voxels = Box::new([[[VoxelType::Air; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
     for x in 0..VOX_MAX_X {
         for y in 0..VOX_MAX_Y {
             for z in 0..VOX_MAX_Z {
                 if x == y && y == z {
-                    voxels[x][y][z] = true;
+                    voxels[x][y][z] = VoxelType::Sand;
                 }
             }
         }

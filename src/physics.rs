@@ -2,7 +2,7 @@ use cgmath::{Point3, Vector3};
 
 use clamp::clamp;
 
-use client::{GameState, Player, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use client::{GameState, Player, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
@@ -20,12 +20,11 @@ fn boundary_at_pos(pos: Point3<f32>) -> bool {
         || pos.z as usize == VOX_MAX_Z
 }
 
-// Determine if there is a voxel at `pos`, returning `None` when the position isn't within the
-// bounds of the voxel grid. Note that the boundary (one outside the voxel grid) is considered a
-// voxel.
-fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
+// Get the type of the voxel at `pos`, returning `None` when the position isn't within the bounds
+// of the voxel grid. Note that the boundary (one outside the voxel grid) is considered a voxel.
+fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<VoxelType> {
     if boundary_at_pos(pos) {
-        Some(true)
+        Some(VoxelType::Boundary)
     } else {
         Some(
             *state
@@ -37,18 +36,19 @@ fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<bool> {
     }
 }
 
-// Determine if the is a voxel at `pos`, returning `false` when the position is out of bounds
+// Determine if there is a non-air voxel at `pos`, returning `false` when the position is out of
+// bounds
 pub fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
-    voxel_at_opt(state, pos).unwrap_or(false)
+    voxel_at_opt(state, pos).unwrap_or(VoxelType::Air) != VoxelType::Air
 }
 
 // Set a voxel at a coordinate, returning `None` if out-of-bounds
-pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, val: bool) -> Option<()> {
+pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, voxel_type: VoxelType) -> Option<()> {
     *state
         .voxels
         .get_mut(pos.x as usize)?
         .get_mut(pos.y as usize)?
-        .get_mut(pos.z as usize)? = val;
+        .get_mut(pos.z as usize)? = voxel_type;
     state.dirty = true;
     Some(())
 }
@@ -93,12 +93,14 @@ pub fn do_sandfall(state: &mut GameState) {
     if state.frame % 10 == 0 {
         // TODO: Find a better way to iterate over voxels
         for x in 0..VOX_MAX_X {
-            for y in 0..VOX_MAX_Y {
+            for y in 1..VOX_MAX_Y {
                 for z in 0..VOX_MAX_Z {
                     // TODO: Make this less boilerplate
-                    if state.voxels[x][y][z] && y > 0 && !state.voxels[x][y - 1][z] {
-                        state.voxels[x][y][z] = false;
-                        state.voxels[x][y - 1][z] = true;
+                    let hi_ty = state.voxels[x][y][z];
+                    let lo_ty = state.voxels[x][y - 1][z];
+                    if hi_ty != VoxelType::Air && lo_ty == VoxelType::Air {
+                        state.voxels[x][y][z] = lo_ty;
+                        state.voxels[x][y - 1][z] = hi_ty;
                         state.dirty = true;
                     }
                 }

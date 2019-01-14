@@ -13,10 +13,17 @@ use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, V
 
 use image::RgbaImage;
 
-use client::{GameState, Graphics, Player, SightBlock, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use client::{GameState, Graphics, Player, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use physics;
 
 pub type VoxInd = i8;
+
+implement_vertex!(VoxelVertex, pos, voxel_type);
+#[derive(Clone, Copy)]
+pub struct VoxelVertex {
+    pos: [VoxInd; 3],
+    voxel_type: u8,
+}
 
 implement_vertex!(BasicVertexI, pos, color);
 #[derive(Clone, Copy)]
@@ -38,6 +45,14 @@ struct SkyboxVertex {
     pos: [f32; 3],
 }
 
+impl VoxelVertex {
+    fn new(pos: [VoxInd; 3], voxel_type: VoxelType) -> Self {
+        Self {
+            pos,
+            voxel_type: voxel_type as u8,
+        }
+    }
+}
 impl BasicVertexI {
     fn new(pos: [VoxInd; 3], color: [VoxInd; 4]) -> Self {
         Self { pos, color }
@@ -112,20 +127,26 @@ fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
 }
 
 // Make a mesh of the voxel world
-fn make_voxels_mesh(state: &GameState) -> Vec<BasicVertexI> {
+fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
     // TODO: Make this mesh a global
+    // TODO: Change this to not be `BasicVertexI`
     let cube_vertices = [
+        // From -x
         BasicVertexI::new([0, 0, 0], [0, 0, 1, 1]),
         BasicVertexI::new([0, 0, 1], [0, 1, 0, 1]),
         BasicVertexI::new([0, 1, 1], [1, 0, 0, 1]),
+        // From -z
         BasicVertexI::new([1, 1, 0], [1, 0, 0, 1]),
         BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
         BasicVertexI::new([0, 1, 0], [0, 0, 1, 1]),
+        // From -y
         BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
         BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
         BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        // From -z
         BasicVertexI::new([1, 1, 0], [0, 0, 1, 1]),
         BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
+        // From -x
         BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
         BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
         BasicVertexI::new([0, 1, 1], [0, 0, 1, 1]),
@@ -158,15 +179,16 @@ fn make_voxels_mesh(state: &GameState) -> Vec<BasicVertexI> {
     for x in 0..VOX_MAX_X {
         for y in 0..VOX_MAX_Y {
             for z in 0..VOX_MAX_Z {
-                if state.voxels[x][y][z] {
+                let voxel_type = state.voxels[x][y][z];
+                if voxel_type != VoxelType::Air {
                     for v in cube_vertices.iter() {
-                        mesh.push(BasicVertexI::new(
+                        mesh.push(VoxelVertex::new(
                             [
                                 v.pos[0] + x as VoxInd,
                                 v.pos[1] + y as VoxInd,
                                 v.pos[2] + z as VoxInd,
                             ],
-                            v.color,
+                            voxel_type,
                         ));
                     }
                 }
@@ -318,7 +340,7 @@ fn render_voxels(
         ..Default::default()
     };
     target
-        .draw(&vbuf, &ibuf, &gfx.basic_prog, &uniforms, &params)
+        .draw(&vbuf, &ibuf, &gfx.voxel_prog, &uniforms, &params)
         .unwrap();
 }
 

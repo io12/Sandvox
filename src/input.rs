@@ -10,9 +10,8 @@ use clamp::clamp;
 
 use std::f32::consts::PI;
 
-use client;
-use client::{Client, GameState, SightBlock};
-use physics;
+use client::{Client, GameState, SightBlock, VoxelType};
+use {client, physics};
 
 const TURN_SPEED: f32 = 0.01;
 const FLY_SPEED: f32 = 30.0; // In m/s
@@ -143,14 +142,14 @@ pub fn do_keys_down(client: &mut Client) {
     // Destroy sand
     if mouse_btn_down(&client.state, MouseButton::Left) {
         if let Some(SightBlock { pos, .. }) = client.state.sight_block {
-            physics::put_voxel(&mut client.state, pos, false);
+            physics::put_voxel(&mut client.state, pos, VoxelType::Air);
         }
     }
 
     // Create sand
     if mouse_btn_down(&client.state, MouseButton::Right) {
         if let Some(SightBlock { new_pos, .. }) = client.state.sight_block {
-            physics::put_voxel(&mut client.state, new_pos, true);
+            physics::put_voxel(&mut client.state, new_pos, VoxelType::Sand);
         }
     }
 }
