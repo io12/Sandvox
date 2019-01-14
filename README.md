@@ -30,6 +30,7 @@ The 3D voxel falling-sand game
   - [ ] Realistic physics
   - [ ] Saving
   - [ ] UI
+  - [ ] Color shade when player is inside a material
 - Server
   - [ ] Upload/rate worlds
   - [ ] Multiplayer
