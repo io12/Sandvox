@@ -28,6 +28,8 @@ The 3D voxel falling-sand game
   - [ ] 3D environment outside the game area
   - [ ] Realistic lighting/shadows
   - [ ] Realistic physics
+  - [ ] Saving
+  - [ ] UI
 - Server
   - [ ] Upload/rate worlds
   - [ ] Multiplayer
