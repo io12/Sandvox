@@ -36,6 +36,8 @@ pub struct SightBlock {
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum VoxelType {
+    // The order of these can't be changed freely, since the voxel vertex shader uses the enum
+    // values as ints. New values must be added to the end.
     Air,
     Sand,
     Boundary,
