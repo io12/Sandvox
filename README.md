@@ -4,6 +4,10 @@
 
 The 3D voxel falling-sand game
 
+# Building
+
+Run `cargo build --release`. Without `--release`, the game is unplayably slow.
+
 # TODO
 
 - Client
