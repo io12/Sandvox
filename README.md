@@ -13,6 +13,9 @@ The 3D voxel falling-sand game
   - [ ] Player friction
   - [ ] Adjustable brush size
   - [ ] Debug HUD
+  - [ ] Color variation
+  - [ ] Better shading
+  - [ ] Better sandfall logic (resolve the statefulness issue)
   - Choice of materials
     - [ ] Wall
     - [ ] Wood
