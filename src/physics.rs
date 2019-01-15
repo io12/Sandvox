@@ -2,6 +2,8 @@ use cgmath::{Point3, Vector3};
 
 use clamp::clamp;
 
+use nd_iter::iter_3d;
+
 use client::{GameState, Player, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
@@ -91,19 +93,14 @@ pub fn do_player_physics(player: &mut Player, dt: f32) {
 // TODO: Somehow use `dt` here
 pub fn do_sandfall(state: &mut GameState) {
     if state.frame % 10 == 0 {
-        // TODO: Find a better way to iterate over voxels
-        for x in 0..VOX_MAX_X {
-            for y in 1..VOX_MAX_Y {
-                for z in 0..VOX_MAX_Z {
-                    // TODO: Make this less boilerplate
-                    let hi_ty = state.voxels[x][y][z];
-                    let lo_ty = state.voxels[x][y - 1][z];
-                    if hi_ty != VoxelType::Air && lo_ty == VoxelType::Air {
-                        state.voxels[x][y][z] = lo_ty;
-                        state.voxels[x][y - 1][z] = hi_ty;
-                        state.dirty = true;
-                    }
-                }
+        for (x, y, z) in iter_3d(0..VOX_MAX_X, 1..VOX_MAX_Y, 0..VOX_MAX_Z) {
+            // TODO: Make this less boilerplate
+            let hi_ty = state.voxels[x][y][z];
+            let lo_ty = state.voxels[x][y - 1][z];
+            if hi_ty != VoxelType::Air && lo_ty == VoxelType::Air {
+                state.voxels[x][y][z] = lo_ty;
+                state.voxels[x][y - 1][z] = hi_ty;
+                state.dirty = true;
             }
         }
     }

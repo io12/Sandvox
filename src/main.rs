@@ -3,6 +3,7 @@ extern crate glium;
 extern crate cgmath;
 extern crate clamp;
 extern crate image;
+extern crate nd_iter;
 
 use std::time::{Duration, SystemTime};
 

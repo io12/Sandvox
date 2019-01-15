@@ -5,6 +5,8 @@ use glium::glutin::{ContextBuilder, EventsLoop, MouseButton, VirtualKeyCode, Win
 
 use cgmath::{Point3, Vector2, Vector3};
 
+use nd_iter::iter_3d;
+
 use std::collections::HashMap;
 
 use render::{VoxInd, VoxelVertex};
@@ -43,13 +45,15 @@ pub enum VoxelType {
     Boundary,
 }
 
+pub type VoxelGrid = Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>;
+
 pub struct GameState {
     pub running: bool,
     pub paused: bool,
     pub frame: u32,
     pub player: Player,
     pub sight_block: Option<SightBlock>,
-    pub voxels: Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>,
+    pub voxels: VoxelGrid,
     pub voxels_mesh: Vec<VoxelVertex>,
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
@@ -140,15 +144,11 @@ impl Client {
 
 // Create an initial diagonal stripe test world
 // TODO: Remove this
-fn make_test_world() -> Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]> {
+fn make_test_world() -> VoxelGrid {
     let mut voxels = Box::new([[[VoxelType::Air; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
-    for x in 0..VOX_MAX_X {
-        for y in 0..VOX_MAX_Y {
-            for z in 0..VOX_MAX_Z {
-                if x == y && y == z {
-                    voxels[x][y][z] = VoxelType::Sand;
-                }
-            }
+    for (x, y, z) in iter_3d(0..VOX_MAX_X, 0..VOX_MAX_Y, 0..VOX_MAX_Z) {
+        if x == y && y == z {
+            voxels[x][y][z] = VoxelType::Sand;
         }
     }
     voxels

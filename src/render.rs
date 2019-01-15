@@ -13,6 +13,8 @@ use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, V
 
 use image::RgbaImage;
 
+use nd_iter::iter_3d;
+
 use client::{GameState, Graphics, Player, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use physics;
 
@@ -176,22 +178,18 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
 
     let mut mesh = Vec::new();
     // Iterate through all the voxels, creating a cube mesh for each
-    for x in 0..VOX_MAX_X {
-        for y in 0..VOX_MAX_Y {
-            for z in 0..VOX_MAX_Z {
-                let voxel_type = state.voxels[x][y][z];
-                if voxel_type != VoxelType::Air {
-                    for v in cube_vertices.iter() {
-                        mesh.push(VoxelVertex::new(
-                            [
-                                v.pos[0] + x as VoxInd,
-                                v.pos[1] + y as VoxInd,
-                                v.pos[2] + z as VoxInd,
-                            ],
-                            voxel_type,
-                        ));
-                    }
-                }
+    for (x, y, z) in iter_3d(0..VOX_MAX_X, 0..VOX_MAX_Y, 0..VOX_MAX_Z) {
+        let voxel_type = state.voxels[x][y][z];
+        if voxel_type != VoxelType::Air {
+            for v in cube_vertices.iter() {
+                mesh.push(VoxelVertex::new(
+                    [
+                        v.pos[0] + x as VoxInd,
+                        v.pos[1] + y as VoxInd,
+                        v.pos[2] + z as VoxInd,
+                    ],
+                    voxel_type,
+                ));
             }
         }
     }
