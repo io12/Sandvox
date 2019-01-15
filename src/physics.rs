@@ -4,6 +4,8 @@ use clamp::clamp;
 
 use nd_iter::iter_3d;
 
+use rand::prelude::*;
+
 use client::{GameState, Player, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
@@ -89,6 +91,12 @@ pub fn do_player_physics(player: &mut Player, dt: f32) {
     player.velocity.y -= ACCEL_GRAV * dt;
 }
 
+// Get a random direction along a 2D plane
+fn get_rand_dir<T: Rng>(rng: &mut T) -> (i32, i32) {
+    // Add one because `gen_range()` is exclusive on the upper bound
+    (rng.gen_range(-1, 1 + 1), rng.gen_range(-1, 1 + 1))
+}
+
 // Propagate the voxels downwards (gravity)
 // TODO: Somehow use `dt` here
 pub fn do_sandfall(state: &mut GameState) {
@@ -97,10 +105,32 @@ pub fn do_sandfall(state: &mut GameState) {
             // TODO: Make this less boilerplate
             let hi_ty = state.voxels[x][y][z];
             let lo_ty = state.voxels[x][y - 1][z];
+            // Try direct up-down swap
             if hi_ty != VoxelType::Air && lo_ty == VoxelType::Air {
                 state.voxels[x][y][z] = lo_ty;
                 state.voxels[x][y - 1][z] = hi_ty;
                 state.dirty = true;
+            } else if x != 0 && state.voxels[x - 1][y - 1][z] == VoxelType::Air
+                || z != 0 && state.voxels[x][y - 1][z - 1] == VoxelType::Air
+                || x != 0 && z != 0 && state.voxels[x - 1][y - 1][z - 1] == VoxelType::Air
+                || x != VOX_MAX_X - 1 && state.voxels[x + 1][y - 1][z] == VoxelType::Air
+                || z != VOX_MAX_Z - 1 && state.voxels[x][y - 1][z + 1] == VoxelType::Air
+                || x != VOX_MAX_X - 1
+                    && z != VOX_MAX_Z - 1
+                    && state.voxels[x + 1][y - 1][z + 1] == VoxelType::Air
+            {
+                // Try moving sideways-down
+                let (dx, dz) = get_rand_dir(&mut state.rng);
+                let x_alt = (x as i32 + dx) as usize;
+                let z_alt = (z as i32 + dz) as usize;
+                if x_alt < VOX_MAX_X
+                    && z_alt < VOX_MAX_Z
+                    && state.voxels[x_alt][y - 1][z_alt] == VoxelType::Air
+                {
+                    state.voxels[x][y][z] = VoxelType::Air;
+                    state.voxels[x_alt][y - 1][z_alt] = hi_ty;
+                    state.dirty = true;
+                }
             }
         }
     }

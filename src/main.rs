@@ -4,6 +4,8 @@ extern crate cgmath;
 extern crate clamp;
 extern crate image;
 extern crate nd_iter;
+extern crate rand;
+extern crate rand_xorshift;
 
 use std::time::{Duration, SystemTime};
 

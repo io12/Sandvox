@@ -7,6 +7,9 @@ use cgmath::{Point3, Vector2, Vector3};
 
 use nd_iter::iter_3d;
 
+use rand::prelude::*;
+use rand_xorshift::XorShiftRng;
+
 use std::collections::HashMap;
 
 use render::{VoxInd, VoxelVertex};
@@ -58,6 +61,7 @@ pub struct GameState {
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
     pub mouse_btns_down: HashMap<MouseButton, bool>,
+    pub rng: XorShiftRng,
 }
 
 pub struct Client {
@@ -137,6 +141,7 @@ impl Client {
             dirty: true,
             keys_down: HashMap::new(),
             mouse_btns_down: HashMap::new(),
+            rng: SeedableRng::seed_from_u64(0),
         };
         Client { gfx, state }
     }
