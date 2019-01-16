@@ -33,6 +33,8 @@ Run `cargo build --release`. Without `--release`, the game is unplayably slow.
     - [ ] Acid
     - [ ] Dust
   - [ ] 3D environment outside the game area
+  - [ ] Material shade variation
+  - [ ] Clear shading
   - [ ] Realistic lighting/shadows
   - [ ] Realistic physics
   - [ ] Saving
