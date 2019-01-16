@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "sandvox"
-version = "0.2.0"
+version = "0.2.1-alpha.0"
 dependencies = [
  "cgmath 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clamp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

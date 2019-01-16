@@ -1,6 +1,6 @@
 [package]
 name = "sandvox"
-version = "0.2.0"
+version = "0.2.1-alpha.0"
 authors = ["Benjamin Levy <blevy@protonmail.com>"]
 description = "The 3D voxel falling-sand game"
 license = "MIT"
