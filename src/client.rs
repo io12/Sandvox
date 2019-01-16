@@ -69,9 +69,9 @@ pub struct Client {
     pub state: GameState,
 }
 
-pub const VOX_MAX_X: usize = 120;
-pub const VOX_MAX_Y: usize = 120;
-pub const VOX_MAX_Z: usize = 120;
+pub const VOX_MAX_X: usize = 50;
+pub const VOX_MAX_Y: usize = 50;
+pub const VOX_MAX_Z: usize = 50;
 
 const GAME_NAME: &str = "Sandvox";
 const WIN_W: u32 = 800;
