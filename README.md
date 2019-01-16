@@ -13,8 +13,6 @@ Run `cargo build --release`. Without `--release`, the game is unplayably slow.
 - Client
   - [ ] Proper player hitbox
   - [ ] Air control
-  - [ ] Bobbing
-  - [ ] Player friction
   - [ ] Adjustable brush size
   - [ ] Debug HUD
   - [ ] Color variation
@@ -33,8 +31,6 @@ Run `cargo build --release`. Without `--release`, the game is unplayably slow.
     - [ ] Acid
     - [ ] Dust
   - [ ] 3D environment outside the game area
-  - [ ] Material shade variation
-  - [ ] Clear shading
   - [ ] Realistic lighting/shadows
   - [ ] Realistic physics
   - [ ] Saving
