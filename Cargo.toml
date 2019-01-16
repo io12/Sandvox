@@ -12,7 +12,7 @@ keywords = ["voxel", "sandbox", "falling-sand", "3d", "game"]
 travis-ci = { repository = "io12/Sandvox", branch = "master" }
 
 [dependencies]
-glium = "*"
+glium = "0.23.0"
 cgmath = "0.16.1"
 clamp = "0.1.0"
 image = "0.20.1"
