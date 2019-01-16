@@ -1,8 +1,15 @@
 [package]
 name = "sandvox"
-description = "The 3D voxel falling-sand game"
 version = "0.1.0"
 authors = ["Benjamin Levy <blevy@protonmail.com>"]
+description = "The 3D voxel falling-sand game"
+license = "MIT"
+repository = "https://github.com/io12/Sandvox"
+categories = ["games"]
+keywords = ["voxel", "sandbox", "falling-sand", "3d", "opengl", "glium", "glutin", "game"]
+
+[badges]
+travis-ci = { repository = "io12/Sandvox", branch = "master" }
 
 [dependencies]
 glium = "*"
