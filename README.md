@@ -45,6 +45,7 @@ Run `cargo build --release`. Without `--release`, the game is unplayably slow.
   - [ ] Multiplayer
 - Deployment
   - [x] crates.io
+  - [ ] Add documentation on docs.rs
   - [ ] Logo
   - [ ] Linux app (.desktop file, icon)
   - [ ] Linux AppImage
