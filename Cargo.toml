@@ -5,6 +5,7 @@ authors = ["Benjamin Levy <blevy@protonmail.com>"]
 description = "The 3D voxel falling-sand game"
 license = "MIT"
 repository = "https://github.com/io12/Sandvox"
+readme = "README.md"
 categories = ["games"]
 keywords = ["voxel", "sandbox", "falling-sand", "3d", "game"]
 
