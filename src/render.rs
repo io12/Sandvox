@@ -9,7 +9,7 @@ use glium::glutin::dpi::LogicalSize;
 
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
-use cgmath::{ortho, perspective, Deg, Euler, Matrix4, Point3, Quaternion, Rad, Vector2, Vector3};
+use cgmath::{ortho, perspective, Deg, Matrix4, Point3};
 
 use image::RgbaImage;
 
@@ -79,34 +79,6 @@ const CROSSHAIRS_SIZE: f32 = 15.0;
 const PAUSE_SCREEN_DIM: f32 = 0.9; // The amount of screen dimming when paused
                                    // 1.0 is full black, 0.0 is no dimming
 
-// Calculate the forward vector based on the player angle
-fn compute_forward_vector(angle: &Vector2<f32>) -> Vector3<f32> {
-    // The initial vector is rotated on each axis individually, because doing both rotations at
-    // once causes issues.
-    // TODO: Find a better way to do this
-    Quaternion::from(Euler {
-        x: Rad(0.0),
-        y: Rad(angle.x),
-        z: Rad(0.0),
-    })
-    .rotate_vector(
-        Quaternion::from(Euler {
-            x: Rad(angle.y),
-            y: Rad(0.0),
-            z: Rad(0.0),
-        })
-        .rotate_vector(Vector3::new(0.0, 0.0, -1.0)),
-    )
-}
-
-// Compute the (forward, right, up) vectors for the player angle
-fn compute_dir_vectors(angle: &Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
-    let forward = compute_forward_vector(angle);
-    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
-    let up = right.cross(forward);
-    (forward, right, up)
-}
-
 // Get the pixel size
 fn get_win_size(gfx: &Graphics) -> LogicalSize {
     gfx.display.gl_window().window().get_inner_size().unwrap()
@@ -121,7 +93,7 @@ fn get_aspect_ratio(gfx: &Graphics) -> f32 {
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
 fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
-    let (forward, _, up) = compute_dir_vectors(&player.angle);
+    let (forward, _, up) = physics::compute_dir_vectors(player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(player.pos, forward, up);
@@ -200,7 +172,7 @@ fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
 // and is modified by left/right clicks. This function returns `None` if no voxel is in the
 // player's line of sight.
 pub fn get_sight_block(state: &GameState) -> Option<SightBlock> {
-    let forward = compute_forward_vector(&state.player.angle);
+    let forward = physics::compute_forward_vector(state.player.angle);
     let mut pos = state.player.pos;
     // Raycasting
     for _ in 0..BLOCK_SEL_DIST {
@@ -449,7 +421,7 @@ fn make_skybox_mesh() -> [SkyboxVertex; 36] {
 }
 
 fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
-    let (forward, _, up) = compute_dir_vectors(&player.angle);
+    let (forward, _, up) = physics::compute_dir_vectors(player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
     let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(Point3::new(0.0, 0.0, 0.0), forward, up);

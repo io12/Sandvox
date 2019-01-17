@@ -1,4 +1,5 @@
-use cgmath::{Point3, Vector3};
+use cgmath::prelude::*;
+use cgmath::{Euler, Point3, Quaternion, Rad, Vector2, Vector3};
 
 use clamp::clamp;
 
@@ -134,4 +135,32 @@ pub fn do_sandfall(state: &mut GameState) {
             }
         }
     }
+}
+
+// Calculate the forward vector based on the player angle
+pub fn compute_forward_vector(angle: Vector2<f32>) -> Vector3<f32> {
+    // The initial vector is rotated on each axis individually, because doing both rotations at
+    // once causes issues.
+    // TODO: Find a better way to do this
+    Quaternion::from(Euler {
+        x: Rad(0.0),
+        y: Rad(angle.x),
+        z: Rad(0.0),
+    })
+    .rotate_vector(
+        Quaternion::from(Euler {
+            x: Rad(angle.y),
+            y: Rad(0.0),
+            z: Rad(0.0),
+        })
+        .rotate_vector(Vector3::new(0.0, 0.0, -1.0)),
+    )
+}
+
+// Compute the (forward, right, up) vectors for the player angle
+pub fn compute_dir_vectors(angle: Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
+    let forward = compute_forward_vector(angle);
+    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
+    let up = right.cross(forward);
+    (forward, right, up)
 }

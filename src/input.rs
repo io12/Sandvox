@@ -4,7 +4,7 @@ use glium::glutin::{
 };
 
 use cgmath::prelude::*;
-use cgmath::{Euler, Quaternion, Rad, Vector2, Vector3};
+use cgmath::Vector3;
 
 use clamp::clamp;
 
@@ -37,9 +37,8 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
 // Change game state based on a keypress. This is needed because `do_keys_down()` only knows if a
 // key is currently down.
 fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
-    match key {
-        VirtualKeyCode::Tab => state.player.flying = !state.player.flying,
-        _ => {}
+    if key == VirtualKeyCode::Tab {
+        state.player.flying = !state.player.flying;
     }
 }
 
@@ -94,7 +93,7 @@ pub fn mouse_btn_down(state: &GameState, btn: MouseButton) -> bool {
 
 // Process down keys to change the game state
 pub fn do_keys_down(client: &mut Client) {
-    let (forward, right, _) = compute_dir_vectors(&client.state.player.angle);
+    let (forward, right, _) = physics::compute_dir_vectors(client.state.player.angle);
     // Discard the y component to prevent the player from floating when they walk forward while
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
@@ -152,32 +151,4 @@ pub fn do_keys_down(client: &mut Client) {
             physics::put_voxel(&mut client.state, new_pos, VoxelType::Sand);
         }
     }
-}
-
-// Calculate the forward vector based on the player angle
-fn compute_forward_vector(angle: &Vector2<f32>) -> Vector3<f32> {
-    // The initial vector is rotated on each axis individually, because doing both rotations at
-    // once causes issues.
-    // TODO: Find a better way to do this
-    Quaternion::from(Euler {
-        x: Rad(0.0),
-        y: Rad(angle.x),
-        z: Rad(0.0),
-    })
-    .rotate_vector(
-        Quaternion::from(Euler {
-            x: Rad(angle.y),
-            y: Rad(0.0),
-            z: Rad(0.0),
-        })
-        .rotate_vector(Vector3::new(0.0, 0.0, -1.0)),
-    )
-}
-
-// Compute the (forward, right, up) vectors for the player angle
-fn compute_dir_vectors(angle: &Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
-    let forward = compute_forward_vector(angle);
-    let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
-    let up = right.cross(forward);
-    (forward, right, up)
 }

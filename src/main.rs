@@ -18,7 +18,7 @@ use client::Client;
 
 // Get the time since `prev_time` in seconds
 fn get_time_delta(prev_time: &SystemTime) -> f32 {
-    let elapsed = prev_time.elapsed().unwrap_or(Duration::new(0, 0));
+    let elapsed = prev_time.elapsed().unwrap_or_else(|_| Duration::new(0, 0));
     elapsed.as_secs() as f32 + elapsed.subsec_millis() as f32 / 1000.0
 }
 
