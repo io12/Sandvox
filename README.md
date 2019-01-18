@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/io12/Sandvox.svg?branch=master)](https://travis-ci.org/io12/Sandvox)
+![](https://img.shields.io/crates/v/sandvox.svg)
 
 # Sandvox
 
