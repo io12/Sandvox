@@ -2,6 +2,10 @@
 extern crate glium;
 extern crate cgmath;
 extern crate clamp;
+#[macro_use]
+// TODO: Use toplevel `conrod` crate instead
+extern crate conrod_core;
+extern crate conrod_glium;
 extern crate image;
 extern crate nd_iter;
 extern crate rand;

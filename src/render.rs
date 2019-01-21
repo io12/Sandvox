@@ -1,11 +1,12 @@
 use glium::framebuffer::SimpleFrameBuffer;
+use glium::glutin::dpi::LogicalSize;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::texture::srgb_cubemap::SrgbCubemap;
 use glium::texture::{CubeLayer, RawImage2d};
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{Blend, Depth, Display, DrawParameters, Frame, Surface, Texture2d, VertexBuffer};
 
-use glium::glutin::dpi::LogicalSize;
+use conrod_core::{Colorable, Positionable, Widget};
 
 use cgmath::conv::array4x4;
 use cgmath::prelude::*;
@@ -535,6 +536,29 @@ fn render_screen_dimmer(gfx: &Graphics, target: &mut Frame) {
         .unwrap();
 }
 
+// TODO: Handle screen resizing
+fn render_pause_screen(gfx: &mut Graphics, target: &mut Frame) {
+    render_screen_dimmer(gfx, target);
+    // Generate the widget identifiers.
+    widget_ids!(struct Ids { text });
+    let ids = Ids::new(gfx.ui.ui.widget_id_generator());
+    let ui = &mut gfx.ui.ui.set_widgets();
+    conrod_core::widget::Text::new("Paused")
+        .middle_of(ui.window)
+        .color(conrod_core::color::WHITE)
+        .font_size(32)
+        .set(ids.text, ui);
+    if let Some(primitives) = ui.draw_if_changed() {
+        gfx.ui
+            .renderer
+            .fill(&gfx.display, primitives, &gfx.ui.image_map);
+        gfx.ui
+            .renderer
+            .draw(&gfx.display, target, &gfx.ui.image_map)
+            .unwrap();
+    }
+}
+
 // Create meshes for the game objects and render them with OpenGL
 pub fn render(gfx: &mut Graphics, state: &mut GameState) {
     let vox_matrix = compute_voxel_matrix(&state.player, gfx);
@@ -551,7 +575,7 @@ pub fn render(gfx: &mut Graphics, state: &mut GameState) {
     render_wireframe(gfx, state, vox_matrix, &mut target);
     render_crosshairs(gfx, matrix_2d, &mut target);
     if state.paused {
-        render_screen_dimmer(gfx, &mut target);
+        render_pause_screen(gfx, &mut target);
     }
 
     // Swap buffers to finalize rendering

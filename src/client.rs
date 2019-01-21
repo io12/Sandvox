@@ -1,4 +1,5 @@
 use glium::texture::srgb_cubemap::SrgbCubemap;
+use glium::texture::Texture2d;
 use glium::{Display, Program};
 
 use glium::glutin::{ContextBuilder, EventsLoop, MouseButton, VirtualKeyCode, WindowBuilder};
@@ -15,6 +16,12 @@ use std::collections::HashMap;
 use render::{VoxInd, VoxelVertex};
 use {input, physics, render};
 
+pub struct Ui {
+    pub ui: conrod_core::Ui,
+    pub image_map: conrod_core::image::Map<Texture2d>,
+    pub renderer: conrod_glium::Renderer,
+}
+
 pub struct Graphics {
     pub display: Display,
     pub evs: EventsLoop,
@@ -23,6 +30,7 @@ pub struct Graphics {
     pub basic_prog: Program,
     pub sky_prog: Program,
     pub voxel_prog: Program,
+    pub ui: Ui,
 }
 
 pub struct Player {
@@ -116,6 +124,16 @@ impl Client {
         )
         .unwrap();
 
+        let mut ui = conrod_core::UiBuilder::new([win_size.width, win_size.height]).build();
+        // TODO: Make this compiled into the executable
+        ui.fonts
+            .insert_from_file("assets/font/EBGaramond-Medium.ttf")
+            .unwrap();
+        let ui = Ui {
+            ui,
+            image_map: conrod_core::image::Map::new(),
+            renderer: conrod_glium::Renderer::new(&display).unwrap(),
+        };
         let gfx = Graphics {
             display,
             evs,
@@ -123,6 +141,7 @@ impl Client {
             basic_prog,
             sky_prog,
             voxel_prog,
+            ui,
         };
         let player = Player {
             pos: INIT_POS,
