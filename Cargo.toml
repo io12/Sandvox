@@ -16,6 +16,7 @@ travis-ci = { repository = "io12/Sandvox", branch = "master" }
 glium = "0.23.0"
 conrod_core = "0.62.0"
 conrod_glium = "0.62.0"
+conrod_winit = "0.62.0"
 cgmath = "0.16.1"
 clamp = "0.1.0"
 image = "0.20.1"

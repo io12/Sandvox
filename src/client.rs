@@ -24,7 +24,6 @@ pub struct Ui {
 
 pub struct Graphics {
     pub display: Display,
-    pub evs: EventsLoop,
     pub cubemap: SrgbCubemap,
     // GLSL shader programs
     pub basic_prog: Program,
@@ -73,6 +72,7 @@ pub struct GameState {
 }
 
 pub struct Client {
+    pub evs: EventsLoop,
     pub gfx: Graphics,
     pub state: GameState,
 }
@@ -136,7 +136,6 @@ impl Client {
         };
         let gfx = Graphics {
             display,
-            evs,
             cubemap,
             basic_prog,
             sky_prog,
@@ -162,7 +161,7 @@ impl Client {
             mouse_btns_down: HashMap::new(),
             rng: SeedableRng::seed_from_u64(0),
         };
-        Client { gfx, state }
+        Client { evs, gfx, state }
     }
 }
 

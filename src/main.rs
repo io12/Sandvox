@@ -3,9 +3,9 @@ extern crate glium;
 extern crate cgmath;
 extern crate clamp;
 #[macro_use]
-// TODO: Use toplevel `conrod` crate instead
 extern crate conrod_core;
 extern crate conrod_glium;
+extern crate conrod_winit;
 extern crate image;
 extern crate nd_iter;
 extern crate rand;
@@ -35,7 +35,7 @@ fn main() {
     while client.state.running {
         let dt = get_time_delta(&prev_time);
         prev_time = SystemTime::now();
-        input::do_input(&mut client.gfx.evs, &mut client.state);
+        input::do_input(&mut client);
         client::update(&mut client, dt);
         render::render(&mut client.gfx, &mut client.state);
         client.state.frame += 1;

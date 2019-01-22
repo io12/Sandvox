@@ -1,6 +1,5 @@
 use glium::glutin::{
-    DeviceEvent, ElementState, Event, EventsLoop, KeyboardInput, MouseButton, VirtualKeyCode,
-    WindowEvent,
+    DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent,
 };
 
 use cgmath::prelude::*;
@@ -10,7 +9,7 @@ use clamp::clamp;
 
 use std::f32::consts::PI;
 
-use client::{Client, GameState, SightBlock, VoxelType};
+use client::{Client, GameState, Graphics, SightBlock, VoxelType};
 use {client, physics};
 
 const TURN_SPEED: f32 = 0.01;
@@ -69,18 +68,26 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
     }
 }
 
-// Dispatch an event
-fn handle_event(ev: &Event, state: &mut GameState) {
-    match ev {
-        Event::WindowEvent { event: ev, .. } => handle_window_event(&ev, state),
-        Event::DeviceEvent { event: ev, .. } => handle_device_event(&ev, state),
-        _ => {}
+// Try to convert the event to a UI event to pass to the UI library for internal handling
+fn handle_ui_event(ev: Event, gfx: &mut Graphics) {
+    if let Some(ui_ev) = conrod_winit::convert_event(ev, gfx.display.gl_window().window()) {
+        gfx.ui.ui.handle_event(ui_ev);
     }
 }
 
-// TODO: Destructing can possibly be used here and in other places
-pub fn do_input(evs: &mut EventsLoop, state: &mut GameState) {
-    evs.poll_events(|ev| handle_event(&ev, state));
+// Dispatch an event
+fn handle_event(ev: Event, gfx: &mut Graphics, state: &mut GameState) {
+    match ev {
+        Event::WindowEvent { event: ref ev, .. } => handle_window_event(ev, state),
+        Event::DeviceEvent { event: ref ev, .. } => handle_device_event(ev, state),
+        _ => {}
+    }
+    handle_ui_event(ev, gfx);
+}
+
+// Process all the input events and modify state accordingly
+pub fn do_input(Client { evs, gfx, state }: &mut Client) {
+    evs.poll_events(|ev| handle_event(ev, gfx, state));
 }
 
 fn key_down(state: &GameState, key: VirtualKeyCode) -> bool {

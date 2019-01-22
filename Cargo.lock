@@ -178,6 +178,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "conrod_winit"
+version = "0.62.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "conrod_core 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winit 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -916,6 +925,7 @@ dependencies = [
  "clamp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "conrod_core 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "conrod_glium 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conrod_winit 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "nd_iter 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1214,6 +1224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum conrod_core 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)" = "15b3bbc919cd03eb86bfe72b2420e7c77b9d61eecd5e82ab2c448221543a475a"
 "checksum conrod_derive 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2216fbf9f3e0de473cb72babc362b1c445c24f8a3e74e7cd7be296381b3954e6"
 "checksum conrod_glium 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2a3bbe8999e63b0be694e7e66415bee8c293237442fd9fa36d0c10c2722a7017"
+"checksum conrod_winit 0.62.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cee37fc94549190e69366d962984589bef4de951ffdc074c666fd1faca1ad8dc"
 "checksum core-foundation 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "4e2640d6d0bf22e82bed1b73c6aef8d5dd31e5abe6666c57e6d45e2649f4f887"
 "checksum core-foundation-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e7ca8a5221364ef15ce201e8ed2f609fc312682a8f4e0e3d4aa5879764e0fa3b"
 "checksum core-graphics 0.17.3 (registry+https://github.com/rust-lang/crates.io-index)" = "56790968ab1c8a1202a102e6de05fc6e1ec87da99e4e93e9a7d13efbfc1e95a9"
