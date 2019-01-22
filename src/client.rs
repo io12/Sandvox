@@ -2,6 +2,7 @@ use glium::texture::srgb_cubemap::SrgbCubemap;
 use glium::texture::Texture2d;
 use glium::{Display, Program};
 
+use glium::glutin::dpi::LogicalSize;
 use glium::glutin::{ContextBuilder, EventsLoop, MouseButton, VirtualKeyCode, WindowBuilder};
 
 use conrod_core::text::Font;
@@ -92,17 +93,28 @@ const INIT_POS: Point3<f32> = Point3 {
     z: 0.0,
 };
 
-impl Client {
-    // Create a window, initialize OpenGL, compile the GLSL shaders, and initialize a client struct
-    // TODO: Split this function
-    pub fn init() -> Client {
+impl Ui {
+    fn init(win_size: LogicalSize, display: &Display) -> Self {
+        let mut ui = conrod_core::UiBuilder::new([win_size.width, win_size.height]).build();
+        let font_bytes: &[u8] = include_bytes!("../assets/font/EBGaramond-Medium.ttf");
+        ui.fonts.insert(Font::from_bytes(font_bytes).unwrap());
+        Ui {
+            ui,
+            image_map: conrod_core::image::Map::new(),
+            renderer: conrod_glium::Renderer::new(display).unwrap(),
+        }
+    }
+}
+
+impl Graphics {
+    // Create a window, initialize OpenGL, and compile the GLSL shaders
+    fn init(evs: &EventsLoop) -> Self {
         let win_size = (WIN_W, WIN_H).into();
         let win = WindowBuilder::new()
             .with_dimensions(win_size)
             .with_title(GAME_NAME);
         let ctx = ContextBuilder::new().with_depth_buffer(24);
-        let evs = EventsLoop::new();
-        let display = Display::new(win, ctx, &evs).unwrap();
+        let display = Display::new(win, ctx, evs).unwrap();
         let cubemap = render::make_skybox_cubemap(&display);
         // Compile program from GLSL shaders
         let basic_prog = Program::from_source(
@@ -126,34 +138,32 @@ impl Client {
             None,
         )
         .unwrap();
+        let ui = Ui::init(win_size, &display);
 
-        let mut ui = conrod_core::UiBuilder::new([win_size.width, win_size.height]).build();
-        let font_bytes: &[u8] = include_bytes!("../assets/font/EBGaramond-Medium.ttf");
-        ui.fonts.insert(Font::from_bytes(font_bytes).unwrap());
-        let ui = Ui {
-            ui,
-            image_map: conrod_core::image::Map::new(),
-            renderer: conrod_glium::Renderer::new(&display).unwrap(),
-        };
-        let gfx = Graphics {
+        Graphics {
             display,
             cubemap,
             basic_prog,
             sky_prog,
             voxel_prog,
             ui,
-        };
-        let player = Player {
-            pos: INIT_POS,
-            angle: Vector2::new(0.0, 0.0),
-            velocity: Vector3::new(0.0, 0.0, 0.0),
-            flying: true,
-        };
-        let state = GameState {
+        }
+    }
+}
+
+impl GameState {
+    // Initialize the game state object
+    fn init() -> Self {
+        GameState {
             running: true,
             paused: true,
             frame: 0,
-            player,
+            player: Player {
+                pos: INIT_POS,
+                angle: Vector2::new(0.0, 0.0),
+                velocity: Vector3::new(0.0, 0.0, 0.0),
+                flying: true,
+            },
             sight_block: None,
             voxels: make_test_world(),
             voxels_mesh: Vec::new(),
@@ -161,7 +171,16 @@ impl Client {
             keys_down: HashMap::new(),
             mouse_btns_down: HashMap::new(),
             rng: SeedableRng::seed_from_u64(0),
-        };
+        }
+    }
+}
+
+impl Client {
+    // Initialize the game client (event loop, window creation, OpenGL, game state)
+    pub fn init() -> Self {
+        let evs = EventsLoop::new();
+        let gfx = Graphics::init(&evs);
+        let state = GameState::init();
         Client { evs, gfx, state }
     }
 }
