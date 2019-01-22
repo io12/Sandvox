@@ -4,6 +4,8 @@ use glium::{Display, Program};
 
 use glium::glutin::{ContextBuilder, EventsLoop, MouseButton, VirtualKeyCode, WindowBuilder};
 
+use conrod_core::text::Font;
+
 use cgmath::{Point3, Vector2, Vector3};
 
 use nd_iter::iter_3d;
@@ -92,6 +94,7 @@ const INIT_POS: Point3<f32> = Point3 {
 
 impl Client {
     // Create a window, initialize OpenGL, compile the GLSL shaders, and initialize a client struct
+    // TODO: Split this function
     pub fn init() -> Client {
         let win_size = (WIN_W, WIN_H).into();
         let win = WindowBuilder::new()
@@ -125,10 +128,8 @@ impl Client {
         .unwrap();
 
         let mut ui = conrod_core::UiBuilder::new([win_size.width, win_size.height]).build();
-        // TODO: Make this compiled into the executable
-        ui.fonts
-            .insert_from_file("assets/font/EBGaramond-Medium.ttf")
-            .unwrap();
+        let font_bytes: &[u8] = include_bytes!("../assets/font/EBGaramond-Medium.ttf");
+        ui.fonts.insert(Font::from_bytes(font_bytes).unwrap());
         let ui = Ui {
             ui,
             image_map: conrod_core::image::Map::new(),
