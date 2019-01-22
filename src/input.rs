@@ -112,32 +112,35 @@ pub fn do_keys_down(client: &mut Client) {
     };
 
     // TODO: Make this clearer
+    client.state.player.velocity.x = 0.0;
+    client.state.player.velocity.z = 0.0;
     if !physics::player_in_freefall(&client.state) {
-        client.state.player.velocity = Vector3::new(0.0, 0.0, 0.0);
-        // Move forward
-        if key_down(&client.state, VirtualKeyCode::W) {
-            client.state.player.velocity += forward * move_speed
-        }
-        // Move backward
-        if key_down(&client.state, VirtualKeyCode::R) {
-            client.state.player.velocity -= forward * move_speed
-        }
-        // Move left
-        if key_down(&client.state, VirtualKeyCode::A) {
-            client.state.player.velocity -= right * move_speed
-        }
-        // Move right
-        if key_down(&client.state, VirtualKeyCode::S) {
-            client.state.player.velocity += right * move_speed
-        }
         // Jump/fly up
-        if key_down(&client.state, VirtualKeyCode::Space) {
-            client.state.player.velocity.y = move_speed
+        client.state.player.velocity.y = if key_down(&client.state, VirtualKeyCode::Space) {
+            move_speed
+        } else {
+            0.0
         }
-        // Move down
-        if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.flying {
-            client.state.player.velocity.y = -move_speed
-        }
+    }
+    // Move forward
+    if key_down(&client.state, VirtualKeyCode::W) {
+        client.state.player.velocity += forward * move_speed
+    }
+    // Move backward
+    if key_down(&client.state, VirtualKeyCode::R) {
+        client.state.player.velocity -= forward * move_speed
+    }
+    // Move left
+    if key_down(&client.state, VirtualKeyCode::A) {
+        client.state.player.velocity -= right * move_speed
+    }
+    // Move right
+    if key_down(&client.state, VirtualKeyCode::S) {
+        client.state.player.velocity += right * move_speed
+    }
+    // Move down
+    if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.flying {
+        client.state.player.velocity.y = -move_speed
     }
 
     // Pause game
