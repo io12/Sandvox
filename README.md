@@ -13,10 +13,12 @@ Run `cargo build --release`. Without `--release`, the game is unplayably slow.
 
 - Client
   - [ ] Proper player hitbox
+  - [ ] Running
   - [ ] Air control
   - [ ] Adjustable brush size
   - [ ] Debug HUD
   - [ ] Color variation
+  - [ ] Pressure
   - [ ] Better shading
   - [ ] Better sandfall logic (resolve the statefulness issue)
   - Choice of materials
