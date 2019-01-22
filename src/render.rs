@@ -80,7 +80,7 @@ const CROSSHAIRS_SIZE: f32 = 15.0;
 const PAUSE_SCREEN_DIM: f32 = 0.9; // The amount of screen dimming when paused
                                    // 1.0 is full black, 0.0 is no dimming
 
-// Get the pixel size
+// Get the dimensions of the window in pixels
 fn get_win_size(gfx: &Graphics) -> LogicalSize {
     gfx.display.gl_window().window().get_inner_size().unwrap()
 }
