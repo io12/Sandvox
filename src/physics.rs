@@ -7,13 +7,18 @@ use nd_iter::iter_3d;
 
 use rand::prelude::*;
 
-use client::{GameState, Player, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use client::{GameState, Player, PlayerState, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
 const FOREHEAD_SIZE: f32 = 0.2; // Vertical distance from the player's eyes to the top of the player
 const PLAYER_RADIUS: f32 = 0.3; // Radius of the player hitbox (cylinder)
 const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
+
+// In m/s
+const FLY_SPEED: f32 = 30.0;
+const WALK_SPEED: f32 = 4.3;
+const RUN_SPEED: f32 = 5.6;
 
 // Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
 fn boundary_at_pos(pos: Point3<f32>) -> bool {
@@ -59,7 +64,7 @@ pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, voxel_type: VoxelTy
 }
 
 pub fn player_in_freefall(state: &GameState) -> bool {
-    !player_is_standing(state) && !state.player.flying
+    !player_is_standing(state) && state.player.state != PlayerState::Flying
 }
 
 // Is the player standing on the bottom of the voxel grid or sand?
@@ -163,4 +168,12 @@ pub fn compute_dir_vectors(angle: Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, 
     let right = forward.cross(Vector3::new(0.0, 1.0, 0.0));
     let up = right.cross(forward);
     (forward, right, up)
+}
+
+pub fn get_move_speed(player_state: PlayerState) -> f32 {
+    match player_state {
+        PlayerState::Normal => WALK_SPEED,
+        PlayerState::Running => RUN_SPEED,
+        PlayerState::Flying => FLY_SPEED,
+    }
 }

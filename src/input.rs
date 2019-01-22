@@ -9,12 +9,10 @@ use clamp::clamp;
 
 use std::f32::consts::PI;
 
-use client::{Client, GameState, Graphics, SightBlock, VoxelType};
+use client::{Client, GameState, Graphics, PlayerState, SightBlock, VoxelType};
 use {client, physics};
 
 const TURN_SPEED: f32 = 0.01;
-const FLY_SPEED: f32 = 30.0; // In m/s
-const WALK_SPEED: f32 = 5.0; // In m/s
 
 fn handle_mouse_input(state: &mut GameState, mouse_state: ElementState, btn: MouseButton) {
     let down = mouse_state == ElementState::Pressed;
@@ -37,7 +35,11 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
 // key is currently down.
 fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
     if key == VirtualKeyCode::Tab {
-        state.player.flying = !state.player.flying;
+        // Toggle flying
+        state.player.state = match state.player.state {
+            PlayerState::Normal | PlayerState::Running => PlayerState::Flying,
+            PlayerState::Flying => PlayerState::Normal,
+        }
     }
 }
 
@@ -105,11 +107,7 @@ pub fn do_keys_down(client: &mut Client) {
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
     let right = right.normalize();
-    let move_speed = if client.state.player.flying {
-        FLY_SPEED
-    } else {
-        WALK_SPEED
-    };
+    let move_speed = physics::get_move_speed(client.state.player.state);
 
     // TODO: Make this clearer
     client.state.player.velocity.x = 0.0;
@@ -139,7 +137,9 @@ pub fn do_keys_down(client: &mut Client) {
         client.state.player.velocity += right * move_speed
     }
     // Move down
-    if key_down(&client.state, VirtualKeyCode::LShift) && client.state.player.flying {
+    if key_down(&client.state, VirtualKeyCode::LShift)
+        && client.state.player.state == PlayerState::Flying
+    {
         client.state.player.velocity.y = -move_speed
     }
 

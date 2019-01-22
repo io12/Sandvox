@@ -35,11 +35,18 @@ pub struct Graphics {
     pub ui: Ui,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum PlayerState {
+    Normal,
+    Running,
+    Flying,
+}
+
 pub struct Player {
     pub pos: Point3<f32>, // Position of the player's eyes
     pub angle: Vector2<f32>,
     pub velocity: Vector3<f32>,
-    pub flying: bool,
+    pub state: PlayerState,
 }
 
 // A block directly in the player's line of sight
@@ -162,7 +169,7 @@ impl GameState {
                 pos: INIT_POS,
                 angle: Vector2::new(0.0, 0.0),
                 velocity: Vector3::new(0.0, 0.0, 0.0),
-                flying: true,
+                state: PlayerState::Normal,
             },
             sight_block: None,
             voxels: make_test_world(),
