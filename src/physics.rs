@@ -18,7 +18,7 @@ const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
 // In m/s
 const FLY_SPEED: f32 = 30.0;
 const WALK_SPEED: f32 = 4.3;
-const RUN_SPEED: f32 = 5.6;
+const RUN_SPEED: f32 = 6.6;
 
 // Determine if the voxel at `pos` is a boundary (one voxel outside the voxel grid)
 fn boundary_at_pos(pos: Point3<f32>) -> bool {
@@ -175,5 +175,13 @@ pub fn get_move_speed(player_state: PlayerState) -> f32 {
         PlayerState::Normal => WALK_SPEED,
         PlayerState::Running => RUN_SPEED,
         PlayerState::Flying => FLY_SPEED,
+    }
+}
+
+// Toggle flying (used when tab key is pressed)
+pub fn toggle_flight(state: &mut GameState) {
+    state.player.state = match state.player.state {
+        PlayerState::Normal | PlayerState::Running => PlayerState::Flying,
+        PlayerState::Flying => PlayerState::Normal,
     }
 }

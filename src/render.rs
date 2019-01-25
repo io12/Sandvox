@@ -16,7 +16,10 @@ use image::RgbaImage;
 
 use nd_iter::iter_3d;
 
-use client::{GameState, Graphics, Player, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use client::{
+    GameState, Graphics, Player, PlayerState, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y,
+    VOX_MAX_Z,
+};
 use physics;
 
 pub type VoxInd = i8;
@@ -72,7 +75,8 @@ impl SkyboxVertex {
     }
 }
 
-const FOV: Deg<f32> = Deg(60.0);
+const NORMAL_FOV: Deg<f32> = Deg(60.0);
+const RUNNING_FOV: Deg<f32> = Deg(80.0);
 const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
@@ -91,12 +95,19 @@ fn get_aspect_ratio(gfx: &Graphics) -> f32 {
     (width / height) as f32
 }
 
+fn get_fov(player: &Player) -> Deg<f32> {
+    match player.state {
+        PlayerState::Normal | PlayerState::Flying => NORMAL_FOV,
+        PlayerState::Running => RUNNING_FOV,
+    }
+}
+
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
 fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = physics::compute_dir_vectors(player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
-    let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
+    let proj = perspective(get_fov(player), aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(player.pos, forward, up);
     proj * view
 }
@@ -424,7 +435,7 @@ fn make_skybox_mesh() -> [SkyboxVertex; 36] {
 fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
     let (forward, _, up) = physics::compute_dir_vectors(player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
-    let proj = perspective(FOV, aspect_ratio, 0.1, 1000.0);
+    let proj = perspective(get_fov(player), aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(Point3::new(0.0, 0.0, 0.0), forward, up);
     proj * view
 }

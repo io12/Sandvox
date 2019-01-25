@@ -15,6 +15,7 @@ use rand::prelude::*;
 use rand_xorshift::XorShiftRng;
 
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 
 use render::{VoxInd, VoxelVertex};
 use {input, physics, render};
@@ -78,6 +79,7 @@ pub struct GameState {
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
     pub mouse_btns_down: HashMap<MouseButton, bool>,
+    pub run_timer: Option<SystemTime>, // To track double presses for running
     pub rng: XorShiftRng,
 }
 
@@ -177,6 +179,7 @@ impl GameState {
             dirty: true,
             keys_down: HashMap::new(),
             mouse_btns_down: HashMap::new(),
+            run_timer: None,
             rng: SeedableRng::seed_from_u64(0),
         }
     }
@@ -231,4 +234,10 @@ pub fn update(client: &mut Client, dt: f32) {
         physics::do_sandfall(&mut client.state);
         client.state.sight_block = render::get_sight_block(&client.state);
     }
+}
+
+// Get the time since `prev_time` in seconds
+pub fn get_time_delta(prev_time: &SystemTime) -> f32 {
+    let elapsed = prev_time.elapsed().unwrap_or_else(|_| Duration::new(0, 0));
+    elapsed.as_secs() as f32 + elapsed.subsec_millis() as f32 / 1000.0
 }

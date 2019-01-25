@@ -8,11 +8,13 @@ use cgmath::Vector3;
 use clamp::clamp;
 
 use std::f32::consts::PI;
+use std::time::SystemTime;
 
 use client::{Client, GameState, Graphics, PlayerState, SightBlock, VoxelType};
 use {client, physics};
 
 const TURN_SPEED: f32 = 0.01;
+const DOUBLE_PRESS_THRESH: f32 = 0.3; // TODO: Is this a good value?
 
 fn handle_mouse_input(state: &mut GameState, mouse_state: ElementState, btn: MouseButton) {
     let down = mouse_state == ElementState::Pressed;
@@ -31,23 +33,53 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
     }
 }
 
+// Handle the forward key being pressed. Check/set the double-tap-to-run timer.
+fn do_press_forward(state: &mut GameState) {
+    if state.player.state == PlayerState::Normal {
+        if let Some(time) = state.run_timer {
+            let dt = client::get_time_delta(&time);
+            if dt < DOUBLE_PRESS_THRESH {
+                state.player.state = PlayerState::Running;
+            }
+        }
+        state.run_timer = Some(SystemTime::now());
+    }
+}
+
 // Change game state based on a keypress. This is needed because `do_keys_down()` only knows if a
 // key is currently down.
 fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
-    if key == VirtualKeyCode::Tab {
-        // Toggle flying
-        state.player.state = match state.player.state {
-            PlayerState::Normal | PlayerState::Running => PlayerState::Flying,
-            PlayerState::Flying => PlayerState::Normal,
-        }
+    match key {
+        VirtualKeyCode::Tab => physics::toggle_flight(state),
+        VirtualKeyCode::W => do_press_forward(state),
+        _ => {}
+    }
+}
+
+// Handle release of the forward key. Disable running if enabled.
+fn do_release_forward(state: &mut GameState) {
+    if state.player.state == PlayerState::Running {
+        state.player.state = PlayerState::Normal;
+    }
+}
+
+// Change game state based on a key release. This is needed because `do_keys_down()` only knows if
+// a key is currently down.
+fn do_key_release(key: VirtualKeyCode, state: &mut GameState) {
+    match key {
+        VirtualKeyCode::W => do_release_forward(state),
+        _ => {}
     }
 }
 
 fn handle_keyboard_input(inp: &KeyboardInput, state: &mut GameState) {
     let down = inp.state == ElementState::Pressed;
     if let Some(key) = inp.virtual_keycode {
+        // TODO: Check for pause
         if down {
             do_key_press(key, state);
+        } else {
+            do_key_release(key, state);
         }
         // Log whether a key was pressed/released such that `do_keys_down()` knows if keys are down
         state.keys_down.insert(key, down);
