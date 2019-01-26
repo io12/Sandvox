@@ -36,13 +36,14 @@ fn handle_window_event(ev: &WindowEvent, state: &mut GameState) {
 // Handle the forward key being pressed. Check/set the double-tap-to-run timer.
 fn do_press_forward(state: &mut GameState) {
     if state.player.state == PlayerState::Normal {
-        if let Some(time) = state.run_timer {
+        if let Some(time) = state.timers.run_press_timer {
             let dt = client::get_time_delta(&time);
             if dt < DOUBLE_PRESS_THRESH {
                 state.player.state = PlayerState::Running;
+                state.timers.since_run_timer = Some(SystemTime::now());
             }
         }
-        state.run_timer = Some(SystemTime::now());
+        state.timers.run_press_timer = Some(SystemTime::now());
     }
 }
 
@@ -60,6 +61,7 @@ fn do_key_press(key: VirtualKeyCode, state: &mut GameState) {
 fn do_release_forward(state: &mut GameState) {
     if state.player.state == PlayerState::Running {
         state.player.state = PlayerState::Normal;
+        state.timers.since_run_timer = Some(SystemTime::now());
     }
 }
 

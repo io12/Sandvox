@@ -68,6 +68,12 @@ pub enum VoxelType {
 
 pub type VoxelGrid = Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>;
 
+pub struct GameTimers {
+    // TODO: Maybe don't use SystemTime?
+    pub run_press_timer: Option<SystemTime>, // Time since foward press to track double presses for running
+    pub since_run_timer: Option<SystemTime>, // Time since start/stop running, for FOV fading
+}
+
 pub struct GameState {
     pub running: bool,
     pub paused: bool,
@@ -79,8 +85,8 @@ pub struct GameState {
     pub dirty: bool,
     pub keys_down: HashMap<VirtualKeyCode, bool>,
     pub mouse_btns_down: HashMap<MouseButton, bool>,
-    pub run_timer: Option<SystemTime>, // To track double presses for running
     pub rng: XorShiftRng,
+    pub timers: GameTimers,
 }
 
 pub struct Client {
@@ -160,6 +166,16 @@ impl Graphics {
     }
 }
 
+impl GameTimers {
+    // Initialize the game timers
+    fn init() -> Self {
+        GameTimers {
+            run_press_timer: None,
+            since_run_timer: None,
+        }
+    }
+}
+
 impl GameState {
     // Initialize the game state object
     fn init() -> Self {
@@ -179,8 +195,8 @@ impl GameState {
             dirty: true,
             keys_down: HashMap::new(),
             mouse_btns_down: HashMap::new(),
-            run_timer: None,
             rng: SeedableRng::seed_from_u64(0),
+            timers: GameTimers::init(),
         }
     }
 }

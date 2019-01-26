@@ -12,15 +12,16 @@ use cgmath::conv::array4x4;
 use cgmath::prelude::*;
 use cgmath::{ortho, perspective, Deg, Matrix4, Point3};
 
+use clamp::clamp;
+
 use image::RgbaImage;
 
 use nd_iter::iter_3d;
 
 use client::{
-    GameState, Graphics, Player, PlayerState, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y,
-    VOX_MAX_Z,
+    GameState, Graphics, PlayerState, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z,
 };
-use physics;
+use {client, physics};
 
 pub type VoxInd = i8;
 
@@ -76,7 +77,8 @@ impl SkyboxVertex {
 }
 
 const NORMAL_FOV: Deg<f32> = Deg(60.0);
-const RUNNING_FOV: Deg<f32> = Deg(80.0);
+const RUNNING_FOV: Deg<f32> = Deg(70.0);
+const FOV_CHANGE_TIME: f32 = 0.06; // The time required to change between `NORMAL_FOV` and `RUNNING_FOV` in seconds
 const BLOCK_SEL_DIST: usize = 200;
 const RAYCAST_STEP: f32 = 0.1;
 const SKYBOX_SIZE: f32 = 1.0;
@@ -95,20 +97,28 @@ fn get_aspect_ratio(gfx: &Graphics) -> f32 {
     (width / height) as f32
 }
 
-fn get_fov(player: &Player) -> Deg<f32> {
-    match player.state {
-        PlayerState::Normal | PlayerState::Flying => NORMAL_FOV,
-        PlayerState::Running => RUNNING_FOV,
+// TODO: Document this
+fn get_fov(state: &GameState) -> Deg<f32> {
+    let (init_fov, target_fov) = match state.player.state {
+        PlayerState::Normal | PlayerState::Flying => (RUNNING_FOV, NORMAL_FOV),
+        PlayerState::Running => (NORMAL_FOV, RUNNING_FOV),
+    };
+    if let Some(timer) = state.timers.since_run_timer {
+        let dt = client::get_time_delta(&timer);
+        let w = clamp(0.0, dt / FOV_CHANGE_TIME, 1.0);
+        target_fov * w + init_fov * (1.0 - w)
+    } else {
+        target_fov
     }
 }
 
 // Compute the transformation matrix. Each vertex is multiplied by the matrix so it renders in the
 // correct position relative to the player.
-fn compute_voxel_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
-    let (forward, _, up) = physics::compute_dir_vectors(player.angle);
+fn compute_voxel_matrix(state: &GameState, gfx: &Graphics) -> Matrix4<f32> {
+    let (forward, _, up) = physics::compute_dir_vectors(state.player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
-    let proj = perspective(get_fov(player), aspect_ratio, 0.1, 1000.0);
-    let view = Matrix4::look_at_dir(player.pos, forward, up);
+    let proj = perspective(get_fov(state), aspect_ratio, 0.1, 1000.0);
+    let view = Matrix4::look_at_dir(state.player.pos, forward, up);
     proj * view
 }
 
@@ -432,10 +442,10 @@ fn make_skybox_mesh() -> [SkyboxVertex; 36] {
     ]
 }
 
-fn compute_skybox_matrix(player: &Player, gfx: &Graphics) -> Matrix4<f32> {
-    let (forward, _, up) = physics::compute_dir_vectors(player.angle);
+fn compute_skybox_matrix(state: &GameState, gfx: &Graphics) -> Matrix4<f32> {
+    let (forward, _, up) = physics::compute_dir_vectors(state.player.angle);
     let aspect_ratio = get_aspect_ratio(gfx);
-    let proj = perspective(get_fov(player), aspect_ratio, 0.1, 1000.0);
+    let proj = perspective(get_fov(state), aspect_ratio, 0.1, 1000.0);
     let view = Matrix4::look_at_dir(Point3::new(0.0, 0.0, 0.0), forward, up);
     proj * view
 }
@@ -572,9 +582,9 @@ fn render_pause_screen(gfx: &mut Graphics, target: &mut Frame) {
 
 // Create meshes for the game objects and render them with OpenGL
 pub fn render(gfx: &mut Graphics, state: &mut GameState) {
-    let vox_matrix = compute_voxel_matrix(&state.player, gfx);
+    let vox_matrix = compute_voxel_matrix(state, gfx);
     let matrix_2d = compute_2d_matrix(gfx);
-    let skybox_matrix = compute_skybox_matrix(&state.player, gfx);
+    let skybox_matrix = compute_skybox_matrix(state, gfx);
 
     let mut target = gfx.display.draw();
     // Initialize rendering
