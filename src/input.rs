@@ -141,7 +141,7 @@ pub fn do_keys_down(client: &mut Client) {
     // looking up. The vectors are normalized to keep the speed constant.
     let forward = Vector3::new(forward.x, 0.0, forward.z).normalize();
     let right = right.normalize();
-    let move_speed = physics::get_move_speed(client.state.player.state);
+    let (lateral_move_speed, up_move_speed) = physics::get_move_speeds(client.state.player.state);
 
     // TODO: Make this clearer
     client.state.player.velocity.x = 0.0;
@@ -149,32 +149,32 @@ pub fn do_keys_down(client: &mut Client) {
     if !physics::player_in_freefall(&client.state) {
         // Jump/fly up
         client.state.player.velocity.y = if key_down(&client.state, VirtualKeyCode::Space) {
-            move_speed
+            up_move_speed
         } else {
             0.0
         }
     }
     // Move forward
     if key_down(&client.state, VirtualKeyCode::W) {
-        client.state.player.velocity += forward * move_speed
+        client.state.player.velocity += forward * lateral_move_speed
     }
     // Move backward
     if key_down(&client.state, VirtualKeyCode::R) {
-        client.state.player.velocity -= forward * move_speed
+        client.state.player.velocity -= forward * lateral_move_speed
     }
     // Move left
     if key_down(&client.state, VirtualKeyCode::A) {
-        client.state.player.velocity -= right * move_speed
+        client.state.player.velocity -= right * lateral_move_speed
     }
     // Move right
     if key_down(&client.state, VirtualKeyCode::S) {
-        client.state.player.velocity += right * move_speed
+        client.state.player.velocity += right * lateral_move_speed
     }
     // Move down
     if key_down(&client.state, VirtualKeyCode::LShift)
         && client.state.player.state == PlayerState::Flying
     {
-        client.state.player.velocity.y = -move_speed
+        client.state.player.velocity.y = -up_move_speed
     }
 
     // Pause game

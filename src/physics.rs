@@ -16,6 +16,7 @@ const PLAYER_RADIUS: f32 = 0.3; // Radius of the player hitbox (cylinder)
 const ACCEL_GRAV: f32 = 9.8; // Acceleration due to gravity, in m/s^2
 
 // In m/s
+const JUMP_SPEED: f32 = 4.3;
 const FLY_SPEED: f32 = 30.0;
 const WALK_SPEED: f32 = 4.3;
 const RUN_SPEED: f32 = 6.6;
@@ -170,16 +171,18 @@ pub fn compute_dir_vectors(angle: Vector2<f32>) -> (Vector3<f32>, Vector3<f32>, 
     (forward, right, up)
 }
 
-pub fn get_move_speed(player_state: PlayerState) -> f32 {
+// Get the speed of (lateral, upward) movement in m/s
+pub fn get_move_speeds(player_state: PlayerState) -> (f32, f32) {
     match player_state {
-        PlayerState::Normal => WALK_SPEED,
-        PlayerState::Running => RUN_SPEED,
-        PlayerState::Flying => FLY_SPEED,
+        PlayerState::Normal => (WALK_SPEED, JUMP_SPEED),
+        PlayerState::Running => (RUN_SPEED, JUMP_SPEED),
+        PlayerState::Flying => (FLY_SPEED, FLY_SPEED),
     }
 }
 
 // Toggle flying (used when tab key is pressed)
 pub fn toggle_flight(state: &mut GameState) {
+    // TODO: Reset run timer
     state.player.state = match state.player.state {
         PlayerState::Normal | PlayerState::Running => PlayerState::Flying,
         PlayerState::Flying => PlayerState::Normal,
