@@ -7,7 +7,7 @@ use nd_iter::iter_3d;
 
 use rand::prelude::*;
 
-use client::{GameState, Player, PlayerState, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use client::{GameState, Player, PlayerState, Voxel, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
 use render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
@@ -31,11 +31,12 @@ fn boundary_at_pos(pos: Point3<f32>) -> bool {
         || pos.z as usize == VOX_MAX_Z
 }
 
-// Get the type of the voxel at `pos`, returning `None` when the position isn't within the bounds
-// of the voxel grid. Note that the boundary (one outside the voxel grid) is considered a voxel.
-fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<VoxelType> {
+// Get the voxel at `pos`, returning `None` when the position isn't
+// within the bounds of the voxel grid. Note that the boundary (one
+// outside the voxel grid) is considered a voxel.
+fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<Voxel> {
     if boundary_at_pos(pos) {
-        Some(VoxelType::Boundary)
+        Some(Voxel::Boundary)
     } else {
         Some(
             *state
@@ -50,16 +51,18 @@ fn voxel_at_opt(state: &GameState, pos: Point3<f32>) -> Option<VoxelType> {
 // Determine if there is a non-air voxel at `pos`, returning `false` when the position is out of
 // bounds
 pub fn voxel_at(state: &GameState, pos: Point3<f32>) -> bool {
-    voxel_at_opt(state, pos).unwrap_or(VoxelType::Air) != VoxelType::Air
+    voxel_at_opt(state, pos)
+        .map(|vox| !vox.is_air())
+        .unwrap_or(false)
 }
 
 // Set a voxel at a coordinate, returning `None` if out-of-bounds
-pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, voxel_type: VoxelType) -> Option<()> {
+pub fn put_voxel(state: &mut GameState, pos: Point3<VoxInd>, voxel: Voxel) -> Option<()> {
     *state
         .voxels
         .get_mut(pos.x as usize)?
         .get_mut(pos.y as usize)?
-        .get_mut(pos.z as usize)? = voxel_type;
+        .get_mut(pos.z as usize)? = voxel;
     state.dirty = true;
     Some(())
 }
@@ -110,21 +113,21 @@ pub fn do_sandfall(state: &mut GameState) {
     if state.frame % 10 == 0 {
         for (x, y, z) in iter_3d(0..VOX_MAX_X, 1..VOX_MAX_Y, 0..VOX_MAX_Z) {
             // TODO: Make this less boilerplate
-            let hi_ty = state.voxels[x][y][z];
-            let lo_ty = state.voxels[x][y - 1][z];
+            let hi = state.voxels[x][y][z];
+            let lo = state.voxels[x][y - 1][z];
             // Try direct up-down swap
-            if hi_ty != VoxelType::Air && lo_ty == VoxelType::Air {
-                state.voxels[x][y][z] = lo_ty;
-                state.voxels[x][y - 1][z] = hi_ty;
+            if !hi.is_air() && lo.is_air() {
+                state.voxels[x][y][z] = lo;
+                state.voxels[x][y - 1][z] = hi;
                 state.dirty = true;
-            } else if x != 0 && state.voxels[x - 1][y - 1][z] == VoxelType::Air
-                || z != 0 && state.voxels[x][y - 1][z - 1] == VoxelType::Air
-                || x != 0 && z != 0 && state.voxels[x - 1][y - 1][z - 1] == VoxelType::Air
-                || x != VOX_MAX_X - 1 && state.voxels[x + 1][y - 1][z] == VoxelType::Air
-                || z != VOX_MAX_Z - 1 && state.voxels[x][y - 1][z + 1] == VoxelType::Air
+            } else if x != 0 && state.voxels[x - 1][y - 1][z].is_air()
+                || z != 0 && state.voxels[x][y - 1][z - 1].is_air()
+                || x != 0 && z != 0 && state.voxels[x - 1][y - 1][z - 1].is_air()
+                || x != VOX_MAX_X - 1 && state.voxels[x + 1][y - 1][z].is_air()
+                || z != VOX_MAX_Z - 1 && state.voxels[x][y - 1][z + 1].is_air()
                 || x != VOX_MAX_X - 1
                     && z != VOX_MAX_Z - 1
-                    && state.voxels[x + 1][y - 1][z + 1] == VoxelType::Air
+                    && state.voxels[x + 1][y - 1][z + 1].is_air()
             {
                 // Try moving sideways-down
                 let (dx, dz) = get_rand_dir(&mut state.rng);
@@ -132,10 +135,10 @@ pub fn do_sandfall(state: &mut GameState) {
                 let z_alt = (z as i32 + dz) as usize;
                 if x_alt < VOX_MAX_X
                     && z_alt < VOX_MAX_Z
-                    && state.voxels[x_alt][y - 1][z_alt] == VoxelType::Air
+                    && state.voxels[x_alt][y - 1][z_alt].is_air()
                 {
-                    state.voxels[x][y][z] = VoxelType::Air;
-                    state.voxels[x_alt][y - 1][z_alt] = hi_ty;
+                    state.voxels[x][y][z] = Voxel::Air;
+                    state.voxels[x_alt][y - 1][z_alt] = hi;
                     state.dirty = true;
                 }
             }

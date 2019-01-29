@@ -19,17 +19,18 @@ use image::RgbaImage;
 use nd_iter::iter_3d;
 
 use client::{
-    GameState, Graphics, PlayerState, SightBlock, VoxelType, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z,
+    GameState, Graphics, PlayerState, SightBlock, Voxel, VoxelShade, VOX_MAX_X, VOX_MAX_Y,
+    VOX_MAX_Z,
 };
 use {client, physics};
 
 pub type VoxInd = i8;
 
-implement_vertex!(VoxelVertex, pos, voxel_type);
+implement_vertex!(VoxelVertex, pos, color);
 #[derive(Clone, Copy)]
 pub struct VoxelVertex {
     pos: [VoxInd; 3],
-    voxel_type: u8,
+    color: [f32; 4],
 }
 
 implement_vertex!(BasicVertexI, pos, color);
@@ -53,11 +54,8 @@ struct SkyboxVertex {
 }
 
 impl VoxelVertex {
-    fn new(pos: [VoxInd; 3], voxel_type: VoxelType) -> Self {
-        Self {
-            pos,
-            voxel_type: voxel_type as u8,
-        }
+    fn new(pos: [VoxInd; 3], color: [f32; 4]) -> Self {
+        Self { pos, color }
     }
 }
 impl BasicVertexI {
@@ -76,6 +74,7 @@ impl SkyboxVertex {
     }
 }
 
+const SHADE_VARIATION: f32 = 0.1;
 const NORMAL_FOV: Deg<f32> = Deg(60.0);
 const RUNNING_FOV: Deg<f32> = Deg(70.0);
 const FOV_CHANGE_TIME: f32 = 0.06; // The time required to change between `NORMAL_FOV` and `RUNNING_FOV` in seconds
@@ -85,6 +84,45 @@ const SKYBOX_SIZE: f32 = 1.0;
 const CROSSHAIRS_SIZE: f32 = 15.0;
 const PAUSE_SCREEN_DIM: f32 = 0.9; // The amount of screen dimming when paused
                                    // 1.0 is full black, 0.0 is no dimming
+
+const CUBE_VERTICES: [[VoxInd; 3]; 36] = [
+    [0, 0, 0],
+    [0, 0, 1],
+    [0, 1, 1],
+    [1, 1, 0],
+    [0, 0, 0],
+    [0, 1, 0],
+    [1, 0, 1],
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 1, 0],
+    [1, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 1, 1],
+    [0, 1, 0],
+    [1, 0, 1],
+    [0, 0, 1],
+    [0, 0, 0],
+    [0, 1, 1],
+    [0, 0, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+    [1, 0, 0],
+    [1, 1, 0],
+    [1, 0, 0],
+    [1, 1, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+    [1, 1, 0],
+    [0, 1, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+    [0, 1, 1],
+    [1, 1, 1],
+    [0, 1, 1],
+    [1, 0, 1],
+];
 
 // Get the dimensions of the window in pixels
 fn get_win_size(gfx: &Graphics) -> LogicalSize {
@@ -122,67 +160,40 @@ fn compute_voxel_matrix(state: &GameState, gfx: &Graphics) -> Matrix4<f32> {
     proj * view
 }
 
+// Use a factorial number system to map a voxel shade value to a
+// unique float triplet representing the color
+fn expand_shade(shade: VoxelShade) -> [f32; 3] {
+    let third = VoxelShade::max_value() / 3;
+    [
+        (shade / third / third % third) as f32 * SHADE_VARIATION,
+        (shade / third % third) as f32 * SHADE_VARIATION,
+        (shade % third) as f32 * SHADE_VARIATION,
+    ]
+}
+
+// Get the color of a voxel variant
+fn get_voxel_color(voxel: Voxel) -> [f32; 4] {
+    match voxel {
+        Voxel::Air => [1.0, 1.0, 1.0, 0.0],
+        Voxel::Boundary => [0.0, 0.0, 0.0, 1.0],
+        Voxel::Sand(shade) => {
+            let [x, y, z] = expand_shade(shade);
+            [0.93 + x, 0.79 + y, 0.49 + z, 1.0]
+        }
+    }
+}
+
 // Make a mesh of the voxel world
 fn make_voxels_mesh(state: &GameState) -> Vec<VoxelVertex> {
-    // TODO: Make this mesh a global
-    // TODO: Change this to not be `BasicVertexI`
-    let cube_vertices = [
-        // From -x
-        BasicVertexI::new([0, 0, 0], [0, 0, 1, 1]),
-        BasicVertexI::new([0, 0, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 1, 1], [1, 0, 0, 1]),
-        // From -z
-        BasicVertexI::new([1, 1, 0], [1, 0, 0, 1]),
-        BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 1, 0], [0, 0, 1, 1]),
-        // From -y
-        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
-        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
-        // From -z
-        BasicVertexI::new([1, 1, 0], [0, 0, 1, 1]),
-        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
-        // From -x
-        BasicVertexI::new([0, 0, 0], [1, 0, 0, 1]),
-        BasicVertexI::new([0, 0, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 1, 1], [0, 0, 1, 1]),
-        BasicVertexI::new([0, 1, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 0, 1], [1, 0, 0, 1]),
-        BasicVertexI::new([0, 0, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 0, 0], [0, 0, 1, 1]),
-        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 0, 1], [1, 0, 0, 1]),
-        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
-        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 1, 0], [1, 0, 0, 1]),
-        BasicVertexI::new([1, 0, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
-        BasicVertexI::new([1, 0, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 1, 1], [1, 0, 0, 1]),
-        BasicVertexI::new([1, 1, 0], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 1, 0], [0, 0, 1, 1]),
-        BasicVertexI::new([1, 1, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([0, 1, 0], [1, 0, 0, 1]),
-        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 1, 1], [0, 0, 1, 1]),
-        BasicVertexI::new([0, 1, 1], [0, 1, 0, 1]),
-        BasicVertexI::new([1, 0, 1], [1, 0, 0, 1]),
-    ];
-
     let mut mesh = Vec::new();
     // Iterate through all the voxels, creating a cube mesh for each
     for (x, y, z) in iter_3d(0..VOX_MAX_X, 0..VOX_MAX_Y, 0..VOX_MAX_Z) {
-        let voxel_type = state.voxels[x][y][z];
-        if voxel_type != VoxelType::Air {
-            for v in cube_vertices.iter() {
+        let voxel = state.voxels[x][y][z];
+        if !voxel.is_air() {
+            for [vx, vy, vz] in CUBE_VERTICES.iter() {
                 mesh.push(VoxelVertex::new(
-                    [
-                        v.pos[0] + x as VoxInd,
-                        v.pos[1] + y as VoxInd,
-                        v.pos[2] + z as VoxInd,
-                    ],
-                    voxel_type,
+                    [vx + x as VoxInd, vy + y as VoxInd, vz + z as VoxInd],
+                    get_voxel_color(voxel),
                 ));
             }
         }

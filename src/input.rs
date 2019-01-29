@@ -7,10 +7,12 @@ use cgmath::Vector3;
 
 use clamp::clamp;
 
+use rand::prelude::*;
+
 use std::f32::consts::PI;
 use std::time::SystemTime;
 
-use client::{Client, GameState, Graphics, PlayerState, SightBlock, VoxelType};
+use client::{Client, GameState, Graphics, PlayerState, SightBlock, Voxel};
 use {client, physics};
 
 const TURN_SPEED: f32 = 0.01;
@@ -185,14 +187,15 @@ pub fn do_keys_down(client: &mut Client) {
     // Destroy sand
     if mouse_btn_down(&client.state, MouseButton::Left) {
         if let Some(SightBlock { pos, .. }) = client.state.sight_block {
-            physics::put_voxel(&mut client.state, pos, VoxelType::Air);
+            physics::put_voxel(&mut client.state, pos, Voxel::Air);
         }
     }
 
     // Create sand
     if mouse_btn_down(&client.state, MouseButton::Right) {
         if let Some(SightBlock { new_pos, .. }) = client.state.sight_block {
-            physics::put_voxel(&mut client.state, new_pos, VoxelType::Sand);
+            let shade = client.state.rng.gen();
+            physics::put_voxel(&mut client.state, new_pos, Voxel::Sand(shade));
         }
     }
 }

@@ -57,16 +57,15 @@ pub struct SightBlock {
     pub new_pos: Point3<VoxInd>, // Position of new block created from right-clicking
 }
 
-#[derive(Copy, Clone, PartialEq)]
-pub enum VoxelType {
-    // The order of these can't be changed freely, since the voxel vertex shader uses the enum
-    // values as ints. New values must be added to the end.
+#[derive(Clone, Copy)]
+pub enum Voxel {
     Air,
-    Sand,
     Boundary,
+    Sand(VoxelShade),
 }
 
-pub type VoxelGrid = Box<[[[VoxelType; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>;
+pub type VoxelGrid = Box<[[[Voxel; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]>;
+pub type VoxelShade = u8;
 
 pub struct GameTimers {
     // TODO: Maybe don't use SystemTime?
@@ -176,9 +175,19 @@ impl GameTimers {
     }
 }
 
+impl Voxel {
+    pub fn is_air(&self) -> bool {
+        match *self {
+            Voxel::Air => true,
+            _ => false,
+        }
+    }
+}
+
 impl GameState {
     // Initialize the game state object
     fn init() -> Self {
+        let mut rng = SeedableRng::seed_from_u64(0);
         GameState {
             running: true,
             paused: true,
@@ -190,12 +199,12 @@ impl GameState {
                 state: PlayerState::Normal,
             },
             sight_block: None,
-            voxels: make_test_world(),
+            voxels: make_test_world(&mut rng),
             voxels_mesh: Vec::new(),
             dirty: true,
             keys_down: HashMap::new(),
             mouse_btns_down: HashMap::new(),
-            rng: SeedableRng::seed_from_u64(0),
+            rng,
             timers: GameTimers::init(),
         }
     }
@@ -213,11 +222,12 @@ impl Client {
 
 // Create an initial diagonal stripe test world
 // TODO: Remove this
-fn make_test_world() -> VoxelGrid {
-    let mut voxels = Box::new([[[VoxelType::Air; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
+fn make_test_world<R: Rng>(rng: &mut R) -> VoxelGrid {
+    let mut voxels = Box::new([[[Voxel::Air; VOX_MAX_Z]; VOX_MAX_Y]; VOX_MAX_X]);
     for (x, y, z) in iter_3d(0..VOX_MAX_X, 0..VOX_MAX_Y, 0..VOX_MAX_Z) {
         if x == y && y == z {
-            voxels[x][y][z] = VoxelType::Sand;
+            // TODO: Use random instead of coord cast
+            voxels[x][y][z] = Voxel::Sand(rng.gen());
         }
     }
     voxels
