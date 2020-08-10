@@ -7,8 +7,8 @@ use nd_iter::iter_3d;
 
 use rand::prelude::*;
 
-use client::{GameState, Player, PlayerState, Voxel, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
-use render::VoxInd;
+use crate::client::{GameState, Player, PlayerState, Voxel, VOX_MAX_X, VOX_MAX_Y, VOX_MAX_Z};
+use crate::render::VoxInd;
 
 const EYE_HEIGHT: f32 = 1.62; // Height of the player's eyes
 const FOREHEAD_SIZE: f32 = 0.2; // Vertical distance from the player's eyes to the top of the player

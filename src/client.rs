@@ -1,24 +1,25 @@
+use cgmath::{Point3, Vector2, Vector3};
+use conrod_core::text::Font;
 use glium::texture::srgb_cubemap::SrgbCubemap;
 use glium::texture::Texture2d;
 use glium::{Display, Program};
-
-use glium::glutin::dpi::LogicalSize;
-use glium::glutin::{ContextBuilder, EventsLoop, MouseButton, VirtualKeyCode, WindowBuilder};
-
-use conrod_core::text::Font;
-
-use cgmath::{Point3, Vector2, Vector3};
-
+use glutin::dpi::LogicalSize;
+use glutin::event::MouseButton;
+use glutin::event::VirtualKeyCode;
+use glutin::event_loop::EventLoop;
+use glutin::window::WindowBuilder;
+use glutin::ContextBuilder;
 use nd_iter::iter_3d;
-
 use rand::prelude::*;
 use rand_xorshift::XorShiftRng;
 
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
-use render::{VoxInd, VoxelVertex};
-use {input, physics, render};
+use crate::input;
+use crate::physics;
+use crate::render;
+use crate::render::{VoxInd, VoxelVertex};
 
 pub struct Ui {
     pub ui: conrod_core::Ui,
@@ -89,7 +90,7 @@ pub struct GameState {
 }
 
 pub struct Client {
-    pub evs: EventsLoop,
+    pub evs: EventLoop<()>,
     pub gfx: Graphics,
     pub state: GameState,
 }
@@ -108,7 +109,7 @@ const INIT_POS: Point3<f32> = Point3 {
 };
 
 impl Ui {
-    fn init(win_size: LogicalSize, display: &Display) -> Self {
+    fn init(win_size: LogicalSize<f64>, display: &Display) -> Self {
         let mut ui = conrod_core::UiBuilder::new([win_size.width, win_size.height]).build();
         let font_bytes: &[u8] = include_bytes!("../assets/font/EBGaramond-Medium.ttf");
         ui.fonts.insert(Font::from_bytes(font_bytes).unwrap());
@@ -122,7 +123,7 @@ impl Ui {
 
 impl Graphics {
     // Create a window, initialize OpenGL, and compile the GLSL shaders
-    fn init(evs: &EventsLoop) -> Self {
+    fn init(evs: &EventLoop<()>) -> Self {
         let win_size = (WIN_W, WIN_H).into();
         let win = WindowBuilder::new()
             .with_dimensions(win_size)
@@ -213,7 +214,7 @@ impl GameState {
 impl Client {
     // Initialize the game client (event loop, window creation, OpenGL, game state)
     pub fn init() -> Self {
-        let evs = EventsLoop::new();
+        let evs = EventLoop::new();
         let gfx = Graphics::init(&evs);
         let state = GameState::init();
         Client { evs, gfx, state }

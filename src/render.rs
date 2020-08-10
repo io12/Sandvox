@@ -1,28 +1,24 @@
+use cgmath::conv::array4x4;
+use cgmath::prelude::*;
+use cgmath::{ortho, perspective, Deg, Matrix4, Point3};
+use clamp::clamp;
+use conrod_core::{Colorable, Positionable, Widget};
 use glium::framebuffer::SimpleFrameBuffer;
-use glium::glutin::dpi::LogicalSize;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::texture::srgb_cubemap::SrgbCubemap;
 use glium::texture::{CubeLayer, RawImage2d};
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{Blend, Depth, Display, DrawParameters, Frame, Surface, Texture2d, VertexBuffer};
-
-use conrod_core::{Colorable, Positionable, Widget};
-
-use cgmath::conv::array4x4;
-use cgmath::prelude::*;
-use cgmath::{ortho, perspective, Deg, Matrix4, Point3};
-
-use clamp::clamp;
-
+use glutin::dpi::LogicalSize;
 use image::RgbaImage;
-
 use nd_iter::iter_3d;
 
-use client::{
+use crate::client;
+use crate::client::{
     GameState, Graphics, PlayerState, SightBlock, Voxel, VoxelShade, VOX_MAX_X, VOX_MAX_Y,
     VOX_MAX_Z,
 };
-use {client, physics};
+use crate::physics;
 
 pub type VoxInd = i8;
 
@@ -125,7 +121,7 @@ const CUBE_VERTICES: [[VoxInd; 3]; 36] = [
 ];
 
 // Get the dimensions of the window in pixels
-fn get_win_size(gfx: &Graphics) -> LogicalSize {
+fn get_win_size(gfx: &Graphics) -> LogicalSize<f64> {
     gfx.display.gl_window().window().get_inner_size().unwrap()
 }
 
@@ -511,7 +507,7 @@ pub fn make_skybox_cubemap(display: &Display) -> SrgbCubemap {
 
 // Load an image from a byte array. Also xy-flip the texture for OpenGL.
 fn image_from_bytes(bytes: &'static [u8], flip: bool) -> RgbaImage {
-    let img = image::load(std::io::Cursor::new(bytes), image::JPEG).unwrap();
+    let img = image::load(std::io::Cursor::new(bytes), image::ImageFormat::Jpeg).unwrap();
     if flip { img.flipv().fliph() } else { img }.to_rgba()
 }
 

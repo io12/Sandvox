@@ -1,5 +1,6 @@
 [package]
 name = "sandvox"
+edition = "2018"
 version = "0.2.1-alpha.0"
 authors = ["Benjamin Levy <blevy@protonmail.com>"]
 description = "The 3D voxel falling-sand game"
@@ -13,13 +14,15 @@ keywords = ["voxel", "sandbox", "falling-sand", "3d", "game"]
 travis-ci = { repository = "io12/Sandvox", branch = "master" }
 
 [dependencies]
-glium = "0.23.0"
-conrod_core = "0.62.0"
-conrod_glium = "0.62.0"
-conrod_winit = "0.62.0"
-cgmath = "0.16.1"
+glium = "0.27.0"
+conrod_core = "0.70.0"
+conrod_glium = "0.70.0"
+cgmath = "0.17.0"
 clamp = "0.1.0"
-image = "0.20.1"
+image = "0.23.8"
 nd_iter = "0.0.4"
-rand = "0.6.4"
+rand = "0.7.3"
 rand_xorshift = "0.2.0"
+glutin = "0.24.1"
+conrod_winit = "0.70.0"
+winit = "0.22.2"

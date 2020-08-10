@@ -1,19 +1,21 @@
-use glium::glutin::{
-    DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent,
-};
-
 use cgmath::prelude::*;
 use cgmath::Vector3;
-
 use clamp::clamp;
-
+use glutin::event::DeviceEvent;
+use glutin::event::ElementState;
+use glutin::event::Event;
+use glutin::event::KeyboardInput;
+use glutin::event::MouseButton;
+use glutin::event::VirtualKeyCode;
+use glutin::event::WindowEvent;
 use rand::prelude::*;
 
 use std::f32::consts::PI;
 use std::time::SystemTime;
 
-use client::{Client, GameState, Graphics, PlayerState, SightBlock, Voxel};
-use {client, physics};
+use crate::client;
+use crate::client::{Client, GameState, Graphics, PlayerState, SightBlock, Voxel};
+use crate::physics;
 
 const TURN_SPEED: f32 = 0.01;
 const DOUBLE_PRESS_THRESH: f32 = 0.3; // TODO: Is this a good value?
@@ -107,14 +109,14 @@ fn handle_device_event(ev: &DeviceEvent, state: &mut GameState) {
 }
 
 // Try to convert the event to a UI event to pass to the UI library for internal handling
-fn handle_ui_event(ev: Event, gfx: &mut Graphics) {
-    if let Some(ui_ev) = conrod_winit::convert_event(ev, gfx.display.gl_window().window()) {
+fn handle_ui_event(ev: Event<()>, gfx: &mut Graphics) {
+    if let Some(ui_ev) = conrod_winit::v021_convert_event!(ev, gfx.display.gl_window().window()) {
         gfx.ui.ui.handle_event(ui_ev);
     }
 }
 
 // Dispatch an event
-fn handle_event(ev: Event, gfx: &mut Graphics, state: &mut GameState) {
+fn handle_event(ev: Event<()>, gfx: &mut Graphics, state: &mut GameState) {
     match ev {
         Event::WindowEvent { event: ref ev, .. } => handle_window_event(ev, state),
         Event::DeviceEvent { event: ref ev, .. } => handle_device_event(ev, state),
