@@ -769,9 +769,9 @@ dependencies = [
 
 [[package]]
 name = "objc"
-version = "0.2.5"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9833ab0efe5361b1e2122a0544a5d3359576911a42cb098c2e59be8650807367"
+checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
 dependencies = [
  "malloc_buf",
 ]
