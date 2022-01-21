@@ -510,9 +510,9 @@ dependencies = [
 
 [[package]]
 name = "inflate"
-version = "0.4.4"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84c683bde2d8413b8f1be3e459c30e4817672b6e7a31d9212b0323154e76eba7"
+checksum = "1cdb29978cc5797bd8dcc8e5bf7de604891df2a8dc576973d71a281e916db2ff"
 dependencies = [
  "adler32",
 ]
