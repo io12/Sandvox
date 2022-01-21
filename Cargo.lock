@@ -361,9 +361,9 @@ checksum = "18df8ce4470c189d18aa926022da57544f31e154631eb4cfe796aea97051fe6c"
 
 [[package]]
 name = "either"
-version = "1.5.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be565ca5c557d7f59e7cfcf1844f9e3033650c929c6566f511e8005f205c1d0"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "fixedbitset"
