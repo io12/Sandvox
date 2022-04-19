@@ -437,9 +437,9 @@ dependencies = [
 
 [[package]]
 name = "gleam"
-version = "0.6.8"
+version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b47f5b15742aee359c7895ab98cf2cceecc89bb4feb6f4e42f802d7899877da"
+checksum = "17bca843dd3cf25db1bf415d55de9c0f0ae09dd7fa952ec3cef9930f90de1339"
 dependencies = [
  "gl_generator",
 ]
