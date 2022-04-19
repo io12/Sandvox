@@ -662,6 +662,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c722bee1037d430d0f8e687bbdbf222f27cc6e4e68d5caf630857bb2b6dbdce"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if 0.1.6",
+ "libc",
+ "void",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1198,7 +1211,7 @@ dependencies = [
  "dlib",
  "lazy_static",
  "memmap",
- "nix",
+ "nix 0.12.0",
  "rand 0.6.4",
  "wayland-client",
  "wayland-commons",
@@ -1286,7 +1299,7 @@ dependencies = [
  "bitflags",
  "downcast-rs",
  "libc",
- "nix",
+ "nix 0.12.0",
  "wayland-commons",
  "wayland-scanner",
  "wayland-sys",
@@ -1294,11 +1307,11 @@ dependencies = [
 
 [[package]]
 name = "wayland-commons"
-version = "0.21.11"
+version = "0.21.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92af0c5dc724c049e9bd927f8563d9a6abaa94893c5305ef0a6d2805e661f3d3"
+checksum = "40c08896768b667e1df195d88a62a53a2d1351a1ed96188be79c196b35bb32ec"
 dependencies = [
- "nix",
+ "nix 0.14.1",
  "wayland-sys",
 ]
 
@@ -1328,9 +1341,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-sys"
-version = "0.21.11"
+version = "0.21.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a69d729a1747a5bf40ae05b94c7904b64fbf2381e365c046d872ce4a34aa826"
+checksum = "520ab0fd578017a0ee2206623ba9ef4afe5e8f23ca7b42f6acfba2f4e66b1628"
 dependencies = [
  "dlib",
  "lazy_static",
